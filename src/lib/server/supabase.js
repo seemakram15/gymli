@@ -1,14 +1,26 @@
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { env as publicEnv } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
+
+function requireEnv(value, name) {
+	if (!value) {
+		throw new Error(
+			`Missing ${name}. Set it in Vercel → Project Settings → Environment Variables (and locally in .env).`
+		);
+	}
+	return value;
+}
 
 /**
  * Cookie-based SSR client — respects RLS, tied to the logged-in user's session.
  * Use in load functions and form actions via event.locals.supabase.
  */
 export function createSupabaseServerClient(event) {
-	return createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+	const url = requireEnv(publicEnv.PUBLIC_SUPABASE_URL, 'PUBLIC_SUPABASE_URL');
+	const anonKey = requireEnv(publicEnv.PUBLIC_SUPABASE_ANON_KEY, 'PUBLIC_SUPABASE_ANON_KEY');
+
+	return createServerClient(url, anonKey, {
 		cookies: {
 			getAll: () => event.cookies.getAll(),
 			setAll: (cookies) => {
@@ -27,7 +39,10 @@ export function createSupabaseServerClient(event) {
  * NEVER expose this client or its key to the browser.
  */
 export function createSupabaseAdminClient() {
-	return createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+	const url = requireEnv(publicEnv.PUBLIC_SUPABASE_URL, 'PUBLIC_SUPABASE_URL');
+	const serviceKey = requireEnv(privateEnv.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY');
+
+	return createClient(url, serviceKey, {
 		auth: {
 			autoRefreshToken: false,
 			persistSession: false

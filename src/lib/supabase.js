@@ -1,6 +1,15 @@
 import { createBrowserClient } from '@supabase/ssr';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 export function createClient() {
-	return createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
+	const url = env.PUBLIC_SUPABASE_URL;
+	const anonKey = env.PUBLIC_SUPABASE_ANON_KEY;
+
+	if (!url || !anonKey) {
+		throw new Error(
+			'Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_ANON_KEY. Set them in Vercel → Environment Variables.'
+		);
+	}
+
+	return createBrowserClient(url, anonKey);
 }

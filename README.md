@@ -45,8 +45,13 @@ PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 1. Push this repo to GitHub
 2. Import into [vercel.com](https://vercel.com)
-3. Add `PUBLIC_SUPABASE_URL` and `PUBLIC_SUPABASE_ANON_KEY` as environment variables
+3. Add these environment variables (Production + Preview):
+   - `PUBLIC_SUPABASE_URL`
+   - `PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
 4. Deploy — done
+
+Copy values from your local `.env` (or from Supabase → Project Settings → API).
 
 ## Features
 

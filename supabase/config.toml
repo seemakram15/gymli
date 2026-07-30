@@ -221,9 +221,9 @@ web3 = 30
 enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
-double_confirm_changes = true
+double_confirm_changes = false
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -231,22 +231,29 @@ max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+otp_expiry = 600
 
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Brevo SMTP (values mirrored from .env for remote config push)
+[auth.email.smtp]
+enabled = true
+host = "env(SMTP_SERVER)"
+port = 587
+user = "env(LOGIN)"
+pass = "env(BRAVO_SMTP_KEY)"
+admin_email = "env(BRAVO_EMAIL)"
+sender_name = "GymLi"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+[auth.email.template.confirmation]
+subject = "Your GymLi confirmation code"
+content_path = "./supabase/templates/confirm-email.html"
+
+[auth.email.template.recovery]
+subject = "Your GymLi password reset code"
+content_path = "./supabase/templates/reset-password.html"
+
+[auth.email.template.email_change]
+subject = "Your GymLi email-change code"
+content_path = "./supabase/templates/change-email.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
