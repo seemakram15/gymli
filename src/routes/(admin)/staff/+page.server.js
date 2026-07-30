@@ -1,4 +1,5 @@
 import { fail } from '@sveltejs/kit';
+import { createSupabaseAdminClient } from '$lib/server/supabase.js';
 
 export const load = async ({ locals }) => {
 	const { data: staff } = await locals.supabase
@@ -16,9 +17,12 @@ export const actions = {
 		const email = data.get('email');
 		const password = Math.random().toString(36).slice(-10);
 
-		const { data: authData, error: authError } = await locals.supabase.auth.signUp({
-			email, password,
-			options: { data: { full_name: data.get('full_name'), role: data.get('role') } }
+		const adminClient = createSupabaseAdminClient();
+		const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+			email,
+			password,
+			email_confirm: true,
+			user_metadata: { full_name: data.get('full_name'), role: data.get('role') }
 		});
 
 		if (authError) return fail(400, { error: authError.message });

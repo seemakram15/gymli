@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { createSupabaseAdminClient } from '$lib/server/supabase.js';
 
 export const load = async ({ locals }) => {
 	const { data: gyms } = await locals.supabase.from('gyms').select('id, name').eq('status', 'active');
@@ -31,10 +32,13 @@ export const actions = {
 			return fail(400, { error: 'Full name and phone number are required.' });
 		}
 
-		// Create auth user
-		const { data: authData, error: authError } = await locals.supabase.auth.admin
-			? await locals.supabase.auth.admin.createUser({ email, password, email_confirm: true })
-			: await locals.supabase.auth.signUp({ email, password });
+		// Create auth user via admin client (service role bypasses email confirmation)
+		const adminClient = createSupabaseAdminClient();
+		const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+			email,
+			password,
+			email_confirm: true
+		});
 
 		if (authError) {
 			return fail(400, { error: authError.message });
