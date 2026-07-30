@@ -2,13 +2,14 @@
 	import {
 		LayoutDashboard, Users, CreditCard, Package,
 		Building2, CalendarCheck, BarChart3, Settings,
-		LogOut, Menu, X, Dumbbell, ChevronDown, UserCog,
+		LogOut, Menu, X, ChevronDown, UserCog,
 		Bell, ChevronRight
 	} from 'lucide-svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { createClient } from '$lib/supabase.js';
 	import { initials } from '$lib/utils/format.js';
+	import Logo from '$lib/components/Logo.svelte';
 
 	let { children, data } = $props();
 	const supabase = createClient();
@@ -66,12 +67,12 @@
 			bg-ink-950"
 	>
 		<div class="flex items-center gap-3 px-5 py-5 border-b border-white/8">
-			<div class="w-9 h-9 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center shrink-0">
-				<Dumbbell size={18} />
+			<div class="w-9 h-9 shrink-0 flex items-center justify-center">
+				<img src="/images/logo_dark_mode_transparent.png" alt="GymLi" class="w-full h-full object-contain" />
 			</div>
 			<div class="flex-1 min-w-0">
-				<div class="font-display text-white font-bold text-base leading-none truncate">GymLi</div>
-				<div class="text-white/40 text-xs mt-1 truncate">{gymName}</div>
+				<div class="font-brand text-white text-xl leading-none truncate">Gym<span class="text-volt-500">Li</span></div>
+				<div class="text-white/40 text-xs mt-1.5 truncate">{gymName}</div>
 			</div>
 		</div>
 

@@ -30,4 +30,14 @@ export const actions = {
 		if (error) return fail(400, { error: error.message });
 		return { success: true };
 	},
+
+	checkOut: async ({ request, locals }) => {
+		const data = await request.formData();
+		const { error } = await locals.supabase
+			.from('attendance')
+			.update({ checked_out_at: new Date().toISOString() })
+			.eq('id', data.get('id'));
+		if (error) return fail(400, { error: error.message });
+		return { success: true };
+	},
 };

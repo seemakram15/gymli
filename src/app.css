@@ -1,9 +1,10 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&family=Yellowtail&display=swap');
 
 @theme {
   --font-family-sans: 'DM Sans', system-ui, sans-serif;
   --font-family-display: 'Syne', 'DM Sans', system-ui, sans-serif;
+  --font-family-brand: 'Yellowtail', cursive;
 
   /* Charcoal ink + volt lime — athletic, not purple SaaS */
   --color-ink-50:  #f4f4f2;
@@ -42,16 +43,29 @@
   --color-brand-950: #1e2e04;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; }
 
-body {
-  @apply antialiased text-ink-900 bg-ink-50;
-  font-family: var(--font-family-sans);
+  body {
+    @apply antialiased text-ink-900 bg-ink-50;
+    font-family: var(--font-family-sans);
+  }
 }
 
+/*
+ * Custom component classes live in @layer components so Tailwind utility
+ * classes (which Tailwind places in @layer utilities) always win when both
+ * are applied to the same element — e.g. class="input flex items-center".
+ * Without this layer, plain unlayered CSS beats layered utilities regardless
+ * of source order, which silently broke every Select/DatePicker trigger
+ * (icon wrapped onto its own line instead of sitting beside the label).
+ */
+@layer components {
+
 .font-display { font-family: var(--font-family-display); }
+.font-brand { font-family: var(--font-family-brand); font-weight: 400; line-height: 1; }
 
 /* ── Buttons ── */
 .btn {
@@ -276,3 +290,5 @@ tbody tr { @apply border-t border-ink-50 hover:bg-ink-50/80 transition-colors; }
   backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
+
+} /* @layer components */

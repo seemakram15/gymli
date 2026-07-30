@@ -57,9 +57,19 @@
 					</div>
 					<div class="flex-1 min-w-0">
 						<div class="font-medium text-ink-900 truncate">{a.profiles?.full_name ?? '—'}</div>
-						<div class="text-xs text-ink-500">Checked in: {formatDateTime(a.checked_in_at)}</div>
+						<div class="text-xs text-ink-500">
+							Checked in: {formatDateTime(a.checked_in_at)}
+							{#if a.checked_out_at} · Checked out: {formatDateTime(a.checked_out_at)}{/if}
+						</div>
 					</div>
-					<span class="badge-green">Present</span>
+					{#if a.checked_out_at}
+						<span class="badge-gray">Checked out</span>
+					{:else}
+						<form method="POST" action="?/checkOut" use:enhance>
+							<input type="hidden" name="id" value={a.id} />
+							<button type="submit" class="badge-green cursor-pointer hover:opacity-80">Present · Check out</button>
+						</form>
+					{/if}
 				</div>
 			{:else}
 				<div class="px-6 py-12 text-center text-ink-400">No check-ins recorded for this date</div>

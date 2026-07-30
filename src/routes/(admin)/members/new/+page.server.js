@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { createSupabaseAdminClient } from '$lib/server/supabase.js';
 
 export const load = async ({ locals }) => {
-	const { data: gyms } = await locals.supabase.from('gyms').select('id, name').eq('status', 'active');
+	const { data: gyms } = await locals.supabase.from('gyms').select('id, name, city').eq('status', 'active');
 	const { data: packages } = await locals.supabase.from('packages').select('id, name, amount, cycle_id, cycles(name, interval_days)').eq('status', 'active');
 	return { gyms: gyms ?? [], packages: packages ?? [] };
 };
@@ -65,39 +65,36 @@ export const actions = {
 			status: 'active',
 		});
 
-		// Handle avatar upload
+		// Upload avatar + CNIC front/back concurrently (each is a separate network
+		// round-trip to Storage; running them in sequence made real phone photos
+		// take 15-30s+ with no feedback, which read as the form being "stuck").
 		const avatarFile = formData.get('avatar');
-		if (avatarFile?.size > 0) {
-			const ext = avatarFile.name.split('.').pop();
-			const { data: uploaded } = await locals.supabase.storage
-				.from('avatars')
-				.upload(`${userId}/avatar.${ext}`, avatarFile, { upsert: true });
-			if (uploaded) {
-				const { data: { publicUrl } } = locals.supabase.storage.from('avatars').getPublicUrl(uploaded.path);
-				await locals.supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', userId);
-			}
-		}
-
-		// Handle CNIC front image
 		const cnicFront = formData.get('cnic_front');
-		if (cnicFront?.size > 0) {
-			const ext = cnicFront.name.split('.').pop();
-			const { data: up } = await locals.supabase.storage.from('cnic').upload(`${userId}/front.${ext}`, cnicFront, { upsert: true });
-			if (up) {
-				const { data: { publicUrl } } = locals.supabase.storage.from('cnic').getPublicUrl(up.path);
-				await locals.supabase.from('profiles').update({ cnic_front_url: publicUrl }).eq('id', userId);
-			}
+		const cnicBack = formData.get('cnic_back');
+
+		async function uploadTo(bucket, path, file) {
+			if (!file?.size) return null;
+			const ext = file.name.split('.').pop();
+			const { data: uploaded } = await locals.supabase.storage
+				.from(bucket)
+				.upload(`${path}.${ext}`, file, { upsert: true });
+			if (!uploaded) return null;
+			const { data: { publicUrl } } = locals.supabase.storage.from(bucket).getPublicUrl(uploaded.path);
+			return publicUrl;
 		}
 
-		// Handle CNIC back image
-		const cnicBack = formData.get('cnic_back');
-		if (cnicBack?.size > 0) {
-			const ext = cnicBack.name.split('.').pop();
-			const { data: up } = await locals.supabase.storage.from('cnic').upload(`${userId}/back.${ext}`, cnicBack, { upsert: true });
-			if (up) {
-				const { data: { publicUrl } } = locals.supabase.storage.from('cnic').getPublicUrl(up.path);
-				await locals.supabase.from('profiles').update({ cnic_back_url: publicUrl }).eq('id', userId);
-			}
+		const [avatarUrl, cnicFrontUrl, cnicBackUrl] = await Promise.all([
+			uploadTo('avatars', `${userId}/avatar`, avatarFile),
+			uploadTo('cnic', `${userId}/front`, cnicFront),
+			uploadTo('cnic', `${userId}/back`, cnicBack),
+		]);
+
+		const urlUpdates = {};
+		if (avatarUrl) urlUpdates.avatar_url = avatarUrl;
+		if (cnicFrontUrl) urlUpdates.cnic_front_url = cnicFrontUrl;
+		if (cnicBackUrl) urlUpdates.cnic_back_url = cnicBackUrl;
+		if (Object.keys(urlUpdates).length) {
+			await locals.supabase.from('profiles').update(urlUpdates).eq('id', userId);
 		}
 
 		// Create subscription if package selected

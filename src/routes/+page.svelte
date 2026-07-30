@@ -1,8 +1,9 @@
 <script>
 	import {
 		Users, DollarSign, Bell, BarChart2, Shield, Building2,
-		Check, ArrowRight, Dumbbell, Menu, X, IdCard, Wallet, MapPinned
+		Check, ArrowRight, Menu, X, IdCard, Wallet, MapPinned
 	} from 'lucide-svelte';
+	import Logo from '$lib/components/Logo.svelte';
 
 	const services = [
 		{
@@ -126,10 +127,7 @@
 	<div class="max-w-6xl mx-auto px-4 sm:px-6">
 		<div class="flex items-center justify-between h-14 sm:h-[4.25rem] gap-2">
 			<a href="/" class="flex items-center gap-2 group shrink-0">
-				<span class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center">
-					<Dumbbell size={18} />
-				</span>
-				<span class="font-display text-lg sm:text-xl font-extrabold text-white tracking-tight">GymLi</span>
+				<Logo theme="dark" iconClass="w-8 h-8 sm:w-9 sm:h-9" textClass="text-2xl sm:text-3xl" />
 			</a>
 
 			<div class="hidden md:flex items-center gap-8 text-sm font-medium text-white/70">
@@ -325,11 +323,8 @@
 	<div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
 		<div class="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-8 sm:gap-10 mb-10 sm:mb-12">
 			<div class="col-span-2 lg:col-span-1">
-				<a href="/" class="inline-flex items-center gap-2.5 mb-3 sm:mb-4">
-					<span class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center">
-						<Dumbbell size={16} />
-					</span>
-					<span class="font-display text-base sm:text-lg font-extrabold text-white">GymLi</span>
+				<a href="/" class="inline-flex items-center mb-3 sm:mb-4">
+					<Logo theme="dark" iconClass="w-8 h-8 sm:w-9 sm:h-9" textClass="text-xl sm:text-2xl" />
 				</a>
 				<p class="text-xs sm:text-sm leading-relaxed text-white/45 max-w-xs">
 					Pakistan’s gym management system — enrollment, fees, reminders, multi-location.

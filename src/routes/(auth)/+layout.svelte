@@ -1,5 +1,5 @@
 <script>
-	import { Dumbbell } from 'lucide-svelte';
+	import Logo from '$lib/components/Logo.svelte';
 	let { children } = $props();
 </script>
 
@@ -15,11 +15,8 @@
 		<div class="absolute inset-0 bg-gradient-to-r from-ink-950/30 to-transparent"></div>
 
 		<div class="relative h-full flex flex-col justify-between p-10 xl:p-14">
-			<a href="/" class="flex items-center gap-2.5 w-fit">
-				<span class="w-10 h-10 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center">
-					<Dumbbell size={20} />
-				</span>
-				<span class="font-display text-2xl font-extrabold text-white">GymLi</span>
+			<a href="/" class="flex items-center w-fit">
+				<Logo theme="dark" iconClass="w-10 h-10" textClass="text-3xl" />
 			</a>
 
 			<div class="max-w-md">
@@ -40,11 +37,8 @@
 
 	<!-- Form panel -->
 	<div class="flex-1 flex flex-col justify-center items-center px-4 py-10 sm:px-8 sm:py-12 min-h-screen">
-		<a href="/" class="lg:hidden flex items-center gap-2.5 mb-8">
-			<span class="w-10 h-10 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center">
-				<Dumbbell size={20} />
-			</span>
-			<span class="font-display text-xl font-extrabold text-ink-900">GymLi</span>
+		<a href="/" class="lg:hidden flex items-center mb-8">
+			<Logo theme="light" iconClass="w-10 h-10" textClass="text-2xl" />
 		</a>
 
 		<div class="w-full max-w-md">

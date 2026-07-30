@@ -238,27 +238,57 @@ alter table public.services enable row level security;
 alter table public.package_services enable row level security;
 alter table public.reminder_settings enable row level security;
 
+-- Role-check helpers used by the policies below. These MUST be security
+-- definer: a policy on `profiles` that subqueries `profiles` directly
+-- re-triggers its own RLS evaluation and recurses infinitely ("infinite
+-- recursion detected in policy for relation profiles"). Security definer
+-- functions bypass RLS internally, breaking the cycle.
+create or replace function public.current_role_is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role in ('owner', 'manager')
+  );
+$$;
+
+create or replace function public.current_role_is_admin_or_instructor()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role in ('owner', 'manager', 'instructor')
+  );
+$$;
+
+revoke all on function public.current_role_is_admin() from public;
+revoke all on function public.current_role_is_admin_or_instructor() from public;
+grant execute on function public.current_role_is_admin() to authenticated, anon, service_role;
+grant execute on function public.current_role_is_admin_or_instructor() to authenticated, anon, service_role;
+
 -- Profiles: users can read their own; owners/managers can read all
 create policy "Users can view own profile" on public.profiles
   for select using (auth.uid() = id);
 
 create policy "Admins can view all profiles" on public.profiles
-  for select using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-  );
+  for select using (public.current_role_is_admin());
 
 create policy "Users can update own profile" on public.profiles
   for update using (auth.uid() = id);
 
 create policy "Admins can update all profiles" on public.profiles
-  for update using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-  );
+  for update using (public.current_role_is_admin());
 
 create policy "Admins can insert profiles" on public.profiles
-  for insert with check (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-  );
+  for insert with check (public.current_role_is_admin());
 
 -- Gyms: owners can manage their own gyms; everyone can view active gyms
 create policy "Anyone can view active gyms" on public.gyms
@@ -269,53 +299,71 @@ create policy "Owners can manage their gyms" on public.gyms
 
 -- Subscriptions: admins full access; members view own
 create policy "Admins full access to subscriptions" on public.subscriptions
-  for all using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-  );
+  for all using (public.current_role_is_admin());
 
 create policy "Members view own subscriptions" on public.subscriptions
   for select using (user_id = auth.uid());
 
 -- Payments: admins full access; members view own
 create policy "Admins full access to payments" on public.payments
-  for all using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-  );
+  for all using (public.current_role_is_admin());
 
 create policy "Members view own payments" on public.payments
   for select using (user_id = auth.uid());
 
 -- Packages, cycles, services: read-only for members; full for admins
 create policy "Anyone can view packages" on public.packages for select using (status = 'active');
-create policy "Admins manage packages" on public.packages for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-);
+create policy "Admins manage packages" on public.packages for all using (public.current_role_is_admin());
 
 create policy "Anyone can view cycles" on public.cycles for select using (true);
-create policy "Admins manage cycles" on public.cycles for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-);
+create policy "Admins manage cycles" on public.cycles for all using (public.current_role_is_admin());
 
 create policy "Anyone can view services" on public.services for select using (status = 'active');
-create policy "Admins manage services" on public.services for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-);
+create policy "Admins manage services" on public.services for all using (public.current_role_is_admin());
 
 create policy "Anyone can view package_services" on public.package_services for select using (true);
-create policy "Admins manage package_services" on public.package_services for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-);
+create policy "Admins manage package_services" on public.package_services for all using (public.current_role_is_admin());
 
 -- Attendance: members see own; admins see all
 create policy "Admins view all attendance" on public.attendance
-  for all using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager','instructor'))
-  );
+  for all using (public.current_role_is_admin_or_instructor());
 create policy "Members view own attendance" on public.attendance
   for select using (user_id = auth.uid());
 
 -- Reminder settings: admins only
 create policy "Admins manage reminder settings" on public.reminder_settings
-  for all using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('owner','manager'))
-  );
+  for all using (public.current_role_is_admin());
+
+-- ─────────────────────────────────────────────────────────────────
+-- REMINDER LOG (dedup so the daily cron doesn't re-send same-day)
+-- ─────────────────────────────────────────────────────────────────
+create table if not exists public.reminder_log (
+  id uuid primary key default gen_random_uuid(),
+  subscription_id uuid not null references public.subscriptions(id) on delete cascade,
+  kind text not null check (kind in ('due_soon', 'due_today', 'overdue', 'expiry')),
+  sent_date date not null default current_date,
+  created_at timestamptz default now(),
+  unique(subscription_id, kind, sent_date)
+);
+
+alter table public.reminder_log enable row level security;
+
+create policy "Admins manage reminder log" on public.reminder_log
+  for all using (public.current_role_is_admin());
+
+-- Lets the reminders cron (service role) resolve a member's login email —
+-- profiles has no email column; it lives on auth.users.
+create or replace function public.get_auth_email(uid uuid)
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select email from auth.users where id = uid;
+$$;
+
+revoke all on function public.get_auth_email(uuid) from public;
+revoke all on function public.get_auth_email(uuid) from anon;
+revoke all on function public.get_auth_email(uuid) from authenticated;
+grant execute on function public.get_auth_email(uuid) to service_role;

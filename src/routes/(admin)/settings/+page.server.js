@@ -4,7 +4,7 @@ export const load = async ({ locals }) => {
 	const { data: profile } = await locals.supabase
 		.from('profiles')
 		.select('*')
-		.eq('id', locals.session.user.id)
+		.eq('id', locals.user.id)
 		.single();
 
 	const { data: reminderSettings } = await locals.supabase
@@ -39,7 +39,7 @@ export const actions = {
 			full_name: data.get('full_name'),
 			phone_number: data.get('phone_number'),
 			city: data.get('city'),
-		}).eq('id', locals.session.user.id);
+		}).eq('id', locals.user.id);
 		if (error) return fail(400, { profileError: error.message });
 		return { profileSuccess: true };
 	},
@@ -56,7 +56,21 @@ export const actions = {
 			expiry_reminder_days: Number(data.get('expiry_reminder_days')),
 			expiry_reminder_email: data.get('expiry_reminder_email') === 'on',
 		};
-		const { error } = await locals.supabase.from('reminder_settings').upsert(settings);
+
+		// Postgres treats every NULL as distinct, so `unique(gym_id)` never lets
+		// upsert's ON CONFLICT match an existing gym_id-is-null row — it would
+		// insert a fresh duplicate row on every save instead of updating.
+		const { data: existing } = await locals.supabase
+			.from('reminder_settings')
+			.select('id')
+			.is('gym_id', null)
+			.limit(1)
+			.maybeSingle();
+
+		const { error } = existing
+			? await locals.supabase.from('reminder_settings').update(settings).eq('id', existing.id)
+			: await locals.supabase.from('reminder_settings').insert({ ...settings, gym_id: null });
+
 		if (error) return fail(400, { reminderError: error.message });
 		return { reminderSuccess: true };
 	},

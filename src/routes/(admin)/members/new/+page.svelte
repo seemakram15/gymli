@@ -8,12 +8,37 @@
 	let { data, form } = $props();
 	let loading = $state(false);
 	let tab = $state('personal');
+
+	// Bound to component state (not `value={form?.x ?? ''}`) so nothing gets wiped
+	// if a failed submission re-renders the page with a `form` prop that doesn't
+	// carry every field back — and so switching tabs never loses what was typed.
+	let fullName = $state(form?.full_name ?? '');
+	let email = $state(form?.email ?? '');
+	let password = $state('');
+	let phoneNumber = $state(form?.phone_number ?? '');
+	let city = $state(form?.city ?? '');
+	let address = $state('');
+	let emergencyName = $state('');
+	let emergencyPhone = $state('');
+	let medicalNotes = $state('');
 	let cnicValue = $state('');
 	let gender = $state('');
 	let dob = $state('');
 	let gymId = $state('');
 	let packageId = $state('');
 	let startDate = $state(new Date().toISOString().split('T')[0]);
+	let amountDue = $state('');
+
+	/** @type {FileList | undefined} */
+	let avatarFiles = $state();
+	/** @type {FileList | undefined} */
+	let cnicFrontFiles = $state();
+	/** @type {FileList | undefined} */
+	let cnicBackFiles = $state();
+
+	const avatarPreview = $derived(avatarFiles?.[0] ? URL.createObjectURL(avatarFiles[0]) : '');
+	const cnicFrontPreview = $derived(cnicFrontFiles?.[0] ? URL.createObjectURL(cnicFrontFiles[0]) : '');
+	const cnicBackPreview = $derived(cnicBackFiles?.[0] ? URL.createObjectURL(cnicBackFiles[0]) : '');
 
 	function onCnicInput(e) {
 		cnicValue = formatCNIC(e.target.value);
@@ -68,7 +93,7 @@
 				class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all
 					{tab === t.id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-800'}"
 			>
-				<svelte:component this={t.icon} size={14} />
+				<t.icon size={14} />
 				<span class="hidden sm:inline">{t.label}</span>
 			</button>
 		{/each}
@@ -76,7 +101,17 @@
 
 	<form method="POST" enctype="multipart/form-data" use:enhance={() => {
 		loading = true;
-		return async ({ update }) => { await update(); loading = false; };
+		return async ({ update }) => {
+			await update();
+			loading = false;
+			// The error banner renders above the tabs; if the user submitted from a
+			// later tab after scrolling down, a validation error would otherwise
+			// land off-screen and look like the click did nothing.
+			if (form?.error) {
+				tab = 'personal';
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}
+		};
 	}}>
 		<!-- Personal Info -->
 		<div class="card card-body space-y-4 mb-4" class:hidden={tab !== 'personal'}>
@@ -85,18 +120,35 @@
 				<div class="md:col-span-2">
 					<label class="label" for="avatar">Profile Photo</label>
 					<div class="flex items-center gap-4">
-						<div class="w-20 h-20 bg-brand-100 rounded-full flex items-center justify-center text-brand-600">
-							<Upload size={24} />
-						</div>
+						<label
+							for="avatar"
+							class="w-20 h-20 rounded-full overflow-hidden bg-ink-100 text-ink-400 flex items-center justify-center shrink-0 cursor-pointer border border-ink-200 hover:border-ink-400 transition-colors"
+						>
+							{#if avatarPreview}
+								<img src={avatarPreview} alt="Profile preview" class="w-full h-full object-cover" />
+							{:else}
+								<User size={30} />
+							{/if}
+						</label>
 						<div>
-							<input id="avatar" name="avatar" type="file" accept="image/*" class="text-sm text-gray-500 file:mr-3 file:btn file:btn-secondary file:btn-sm file:cursor-pointer" />
+							<label for="avatar" class="btn btn-secondary btn-sm cursor-pointer inline-flex">
+								<Upload size={14} /> {avatarPreview ? 'Change photo' : 'Choose photo'}
+							</label>
+							<input
+								id="avatar"
+								name="avatar"
+								type="file"
+								accept="image/*"
+								class="sr-only"
+								bind:files={avatarFiles}
+							/>
 							<p class="text-xs text-gray-400 mt-1">JPG, PNG up to 5MB</p>
 						</div>
 					</div>
 				</div>
 				<div>
 					<label class="label" for="full_name">Full Name *</label>
-					<input id="full_name" name="full_name" type="text" class="input" placeholder="Muhammad Ali" required value={form?.full_name ?? ''} />
+					<input id="full_name" name="full_name" type="text" class="input" placeholder="Muhammad Ali" required bind:value={fullName} />
 				</div>
 				<div>
 					<label class="label" for="gender">Gender</label>
@@ -108,12 +160,12 @@
 				</div>
 				<div>
 					<label class="label" for="email">Email Address</label>
-					<input id="email" name="email" type="email" class="input" placeholder="member@email.com" value={form?.email ?? ''} />
+					<input id="email" name="email" type="email" class="input" placeholder="member@email.com" bind:value={email} />
 					<p class="text-xs text-gray-400 mt-1">Used for login and email reminders</p>
 				</div>
 				<div>
 					<label class="label" for="password">Initial Password</label>
-					<input id="password" name="password" type="text" class="input" placeholder="Leave blank to auto-generate" />
+					<input id="password" name="password" type="text" class="input" placeholder="Leave blank to auto-generate" bind:value={password} />
 				</div>
 			</div>
 		</div>
@@ -124,27 +176,27 @@
 			<div class="grid md:grid-cols-2 gap-4">
 				<div>
 					<label class="label" for="phone_number">Phone Number *</label>
-					<input id="phone_number" name="phone_number" type="tel" class="input" placeholder="+92 300 0000000" required value={form?.phone_number ?? ''} />
+					<input id="phone_number" name="phone_number" type="tel" class="input" placeholder="+92 300 0000000" required bind:value={phoneNumber} />
 				</div>
 				<div>
 					<label class="label" for="city">City</label>
-					<input id="city" name="city" type="text" class="input" placeholder="Lahore" value={form?.city ?? ''} />
+					<input id="city" name="city" type="text" class="input" placeholder="Lahore" bind:value={city} />
 				</div>
 				<div class="md:col-span-2">
 					<label class="label" for="address">Address</label>
-					<textarea id="address" name="address" class="input" rows="2" placeholder="House no, Street, Area"></textarea>
+					<textarea id="address" name="address" class="input" rows="2" placeholder="House no, Street, Area" bind:value={address}></textarea>
 				</div>
 				<div>
 					<label class="label" for="emergency_contact_name">Emergency Contact Name</label>
-					<input id="emergency_contact_name" name="emergency_contact_name" type="text" class="input" placeholder="Father / Spouse name" />
+					<input id="emergency_contact_name" name="emergency_contact_name" type="text" class="input" placeholder="Father / Spouse name" bind:value={emergencyName} />
 				</div>
 				<div>
 					<label class="label" for="emergency_contact_phone">Emergency Contact Phone</label>
-					<input id="emergency_contact_phone" name="emergency_contact_phone" type="tel" class="input" placeholder="+92 300 0000000" />
+					<input id="emergency_contact_phone" name="emergency_contact_phone" type="tel" class="input" placeholder="+92 300 0000000" bind:value={emergencyPhone} />
 				</div>
 				<div class="md:col-span-2">
 					<label class="label" for="medical_notes">Medical Notes</label>
-					<textarea id="medical_notes" name="medical_notes" class="input" rows="2" placeholder="Any medical conditions, injuries, or important notes…"></textarea>
+					<textarea id="medical_notes" name="medical_notes" class="input" rows="2" placeholder="Any medical conditions, injuries, or important notes…" bind:value={medicalNotes}></textarea>
 				</div>
 			</div>
 		</div>
@@ -159,20 +211,38 @@
 					<p class="text-xs text-gray-400 mt-1">Format: 35202-1234567-1</p>
 				</div>
 				<div>
-					<label class="label">CNIC Front Image</label>
-					<div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-brand-400 transition-colors">
-						<Upload size={24} class="mx-auto text-gray-400 mb-2" />
-						<p class="text-sm text-gray-500 mb-1">Upload front side of CNIC</p>
-						<input name="cnic_front" type="file" accept="image/*" class="text-xs text-gray-500 file:mr-2 file:btn file:btn-secondary file:btn-sm" />
-					</div>
+					<label class="label" for="cnic_front">CNIC Front Image</label>
+					<label
+						for="cnic_front"
+						class="block border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-brand-400 transition-colors cursor-pointer"
+					>
+						{#if cnicFrontPreview}
+							<img src={cnicFrontPreview} alt="CNIC front preview" class="mx-auto max-h-32 rounded-md object-contain mb-2" />
+							<p class="text-xs text-gray-500">Tap to change</p>
+						{:else}
+							<Upload size={24} class="mx-auto text-gray-400 mb-2" />
+							<p class="text-sm text-gray-500 mb-1">Upload front side of CNIC</p>
+							<p class="text-xs text-gray-400">Tap to take a photo or choose from gallery</p>
+						{/if}
+					</label>
+					<input id="cnic_front" name="cnic_front" type="file" accept="image/*" class="sr-only" bind:files={cnicFrontFiles} />
 				</div>
 				<div>
-					<label class="label">CNIC Back Image</label>
-					<div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-brand-400 transition-colors">
-						<Upload size={24} class="mx-auto text-gray-400 mb-2" />
-						<p class="text-sm text-gray-500 mb-1">Upload back side of CNIC</p>
-						<input name="cnic_back" type="file" accept="image/*" class="text-xs text-gray-500 file:mr-2 file:btn file:btn-secondary file:btn-sm" />
-					</div>
+					<label class="label" for="cnic_back">CNIC Back Image</label>
+					<label
+						for="cnic_back"
+						class="block border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-brand-400 transition-colors cursor-pointer"
+					>
+						{#if cnicBackPreview}
+							<img src={cnicBackPreview} alt="CNIC back preview" class="mx-auto max-h-32 rounded-md object-contain mb-2" />
+							<p class="text-xs text-gray-500">Tap to change</p>
+						{:else}
+							<Upload size={24} class="mx-auto text-gray-400 mb-2" />
+							<p class="text-sm text-gray-500 mb-1">Upload back side of CNIC</p>
+							<p class="text-xs text-gray-400">Tap to take a photo or choose from gallery</p>
+						{/if}
+					</label>
+					<input id="cnic_back" name="cnic_back" type="file" accept="image/*" class="sr-only" bind:files={cnicBackFiles} />
 				</div>
 			</div>
 		</div>
@@ -195,7 +265,7 @@
 				</div>
 				<div>
 					<label class="label" for="amount_due">Fee Amount (PKR)</label>
-					<input id="amount_due" name="amount_due" type="number" class="input" placeholder="Auto-filled from plan" min="0" />
+					<input id="amount_due" name="amount_due" type="number" class="input" placeholder="Auto-filled from plan" min="0" bind:value={amountDue} />
 					<p class="text-xs text-gray-400 mt-1">Override plan amount if needed</p>
 				</div>
 			</div>

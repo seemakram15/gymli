@@ -8,14 +8,14 @@ export const load = async ({ locals }) => {
 		);
 	}
 
-	if (!locals.session) {
+	if (!locals.user) {
 		redirect(303, '/login');
 	}
 
 	const { data: profile } = await locals.supabase
 		.from('profiles')
 		.select('id, full_name, role, phone_number, city, avatar_url, gym_id')
-		.eq('id', locals.session.user.id)
+		.eq('id', locals.user.id)
 		.single();
 
 	const { data: gyms } = await locals.supabase
@@ -24,7 +24,7 @@ export const load = async ({ locals }) => {
 		.order('name');
 
 	return {
-		user: locals.session.user,
+		user: locals.user,
 		profile: profile ?? {},
 		gyms: gyms ?? []
 	};
