@@ -7,8 +7,19 @@ export const load = async ({ locals, url }) => {
 	const gym_id = url.searchParams.get('gym_id') ?? '';
 	const method = url.searchParams.get('method') ?? '';
 	const range = url.searchParams.get('range') ?? 'month';
+	const search = url.searchParams.get('search') ?? '';
 	const page = parseInt(url.searchParams.get('page') ?? '1');
 	const perPage = 25;
+
+	const sortColumnMap = {
+		member: { column: 'full_name', foreignTable: 'profiles' },
+		amount: { column: 'amount' },
+		method: { column: 'method' },
+		gym: { column: 'name', foreignTable: 'gyms' },
+		paid_at: { column: 'paid_at' },
+	};
+	const sort = sortColumnMap[url.searchParams.get('sort')] ? url.searchParams.get('sort') : 'paid_at';
+	const dir = url.searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
 
 	const now = new Date();
 	let fromDate;
@@ -19,14 +30,15 @@ export const load = async ({ locals, url }) => {
 	let query = applyGymScope(
 		locals.supabase
 			.from('payments')
-			.select('*, profiles(full_name, phone_number), gyms(name)', { count: 'exact' })
+			.select('*, profiles!inner(full_name, phone_number), gyms(name)', { count: 'exact' })
 			.eq('status', 'completed'),
 		scopedGymId
-	).order('paid_at', { ascending: false });
+	).order(sortColumnMap[sort].column, { ascending: dir === 'asc', foreignTable: sortColumnMap[sort].foreignTable });
 
 	if (fromDate) query = query.gte('paid_at', fromDate);
 	if (gym_id && !scopedGymId) query = query.eq('gym_id', gym_id);
 	if (method) query = query.eq('method', method);
+	if (search) query = query.or(`full_name.ilike.%${search}%,phone_number.ilike.%${search}%`, { foreignTable: 'profiles' });
 
 	query = query.range((page - 1) * perPage, page * perPage - 1);
 
@@ -53,6 +65,9 @@ export const load = async ({ locals, url }) => {
 		page,
 		perPage,
 		range,
+		search,
+		sort,
+		dir,
 		summary: {
 			today: all.filter(p => p.paid_at >= today).reduce((s, p) => s + Number(p.amount), 0),
 			week:  all.filter(p => p.paid_at >= weekStart).reduce((s, p) => s + Number(p.amount), 0),

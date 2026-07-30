@@ -1,6 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Plus, Trash2, Pencil, Package } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import { Plus, Trash2, Pencil, Package, Search, Users } from 'lucide-svelte';
 	import { formatPKR } from '$lib/utils/format.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -17,6 +18,14 @@
 	let editingPkg = $state(null);
 	let editCycleId = $state('');
 	let editServiceIds = $state([]);
+
+	let search = $state('');
+	const activePackages = $derived(data.packages.filter((p) => p.status === 'active'));
+	const filteredPackages = $derived(
+		search.trim()
+			? activePackages.filter((p) => p.name?.toLowerCase().includes(search.trim().toLowerCase()))
+			: activePackages
+	);
 
 	const cycleOptions = $derived([
 		{ value: '', label: 'Select cycle' },
@@ -59,17 +68,28 @@
 		<div class="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">{form.error}</div>
 	{/if}
 
-	<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-		{#each data.packages.filter((p) => p.status === 'active') as pkg}
-			<div class="card p-5 sm:p-6 group">
+	<div class="relative max-w-sm">
+		<Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+		<input class="input pl-9" placeholder="Search plans…" bind:value={search} />
+	</div>
+
+	<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+		{#each filteredPackages as pkg}
+			<div
+				role="button"
+				tabindex="0"
+				onclick={() => goto(`/packages/${pkg.id}`)}
+				onkeydown={(e) => e.key === 'Enter' && goto(`/packages/${pkg.id}`)}
+				class="card p-5 sm:p-6 flex flex-col group hover:shadow-sm hover:border-ink-200 transition-all cursor-pointer"
+			>
 				<div class="flex items-start justify-between mb-3">
-					<div class="w-10 h-10 bg-ink-900 text-volt-300 rounded-xl flex items-center justify-center">
-						<Package size={20} />
+					<div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style="background: linear-gradient(135deg, var(--color-volt-400), var(--color-volt-500));">
+						<Package size={22} class="text-ink-950" />
 					</div>
 					<div class="flex items-center gap-1">
 						<button
 							type="button"
-							onclick={() => openEdit(pkg)}
+							onclick={(e) => { e.stopPropagation(); openEdit(pkg); }}
 							class="p-2 rounded-lg text-ink-300 hover:text-ink-800 hover:bg-ink-50 transition-colors"
 							aria-label="Edit plan"
 						>
@@ -77,7 +97,7 @@
 						</button>
 						<button
 							type="button"
-							onclick={() => askDelete(pkg)}
+							onclick={(e) => { e.stopPropagation(); askDelete(pkg); }}
 							class="p-2 rounded-lg text-ink-300 hover:text-red-500 hover:bg-red-50 transition-colors"
 							aria-label="Delete plan"
 						>
@@ -85,24 +105,28 @@
 						</button>
 					</div>
 				</div>
-				<h3 class="font-display font-bold text-ink-900 text-lg">{pkg.name}</h3>
-				<div class="text-3xl font-extrabold text-ink-900 my-2">{formatPKR(pkg.amount)}</div>
+				<h3 class="font-display font-bold text-ink-900 text-lg truncate">{pkg.name}</h3>
+				<div class="text-3xl font-extrabold text-ink-900 mt-2 mb-1">{formatPKR(pkg.amount)}</div>
 				<div class="text-sm text-ink-500 mb-3">per {pkg.cycles?.name ?? 'cycle'}</div>
 				{#if pkg.description}
-					<p class="text-sm text-ink-500 mb-3">{pkg.description}</p>
+					<p class="text-sm text-ink-500 mb-3 line-clamp-2">{pkg.description}</p>
 				{/if}
 				{#if pkg.package_services?.length}
-					<div class="flex flex-wrap gap-1.5">
+					<div class="flex flex-wrap gap-1.5 mb-3">
 						{#each pkg.package_services as ps}
 							<span class="badge-green text-xs">{ps.services?.name}</span>
 						{/each}
 					</div>
 				{/if}
+				<div class="flex items-center gap-1.5 text-sm text-ink-500 mt-auto pt-3 border-t border-ink-100">
+					<Users size={13} class="text-ink-300" />
+					<span class="font-semibold text-ink-900">{pkg.memberCount}</span> member{pkg.memberCount === 1 ? '' : 's'} on this plan
+				</div>
 			</div>
 		{/each}
-		{#if data.packages.filter((p) => p.status === 'active').length === 0}
+		{#if filteredPackages.length === 0}
 			<div class="md:col-span-3 card p-12 text-center text-ink-400">
-				No plans yet. Add your first membership plan.
+				{search.trim() ? 'No plans match your search.' : 'No plans yet. Add your first membership plan.'}
 			</div>
 		{/if}
 	</div>

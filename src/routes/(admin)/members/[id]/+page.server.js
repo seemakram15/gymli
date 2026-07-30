@@ -66,13 +66,18 @@ export const actions = {
 		const updates = Object.fromEntries(
 			['full_name','phone_number','cnic_number','gender','date_of_birth',
 			 'address','city','emergency_contact_name','emergency_contact_phone',
-			 'medical_notes','status'].map(k => [k, data.get(k)])
+			 'medical_notes','status','registration_code'].map(k => [k, data.get(k)])
 		);
 
 		const { error: err } = await locals.supabase
 			.from('profiles').update(updates).eq('id', params.id);
 
-		if (err) return fail(400, { error: err.message });
+		if (err) {
+			const message = err.code === '23505'
+				? `Registration code "${updates.registration_code}" is already in use by another member.`
+				: err.message;
+			return fail(400, { error: message });
+		}
 		return { success: true };
 	},
 

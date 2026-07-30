@@ -16,6 +16,7 @@ export const load = async ({ locals }) => {
 
 	return {
 		profile: profile ?? {},
+		email: locals.user?.email ?? '',
 		reminderSettings: reminderSettings ?? {
 			due_soon_days: 3,
 			due_soon_email: true,
@@ -36,13 +37,53 @@ export const load = async ({ locals }) => {
 export const actions = {
 	updateProfile: async ({ request, locals }) => {
 		const data = await request.formData();
-		const { error } = await locals.supabase.from('profiles').update({
+
+		let avatar_url;
+		const avatarFile = data.get('avatar');
+		if (avatarFile?.size) {
+			const ext = avatarFile.name.split('.').pop();
+			const { data: uploaded } = await locals.supabase.storage
+				.from('avatars')
+				.upload(`${locals.user.id}/avatar.${ext}`, avatarFile, { upsert: true });
+			if (uploaded) {
+				const { data: { publicUrl } } = locals.supabase.storage.from('avatars').getPublicUrl(uploaded.path);
+				avatar_url = publicUrl;
+			}
+		}
+
+		const updates = {
 			full_name: data.get('full_name'),
 			phone_number: data.get('phone_number'),
 			city: data.get('city'),
-		}).eq('id', locals.user.id);
+		};
+		if (avatar_url) updates.avatar_url = avatar_url;
+
+		const { error } = await locals.supabase.from('profiles').update(updates).eq('id', locals.user.id);
 		if (error) return fail(400, { profileError: error.message });
 		return { profileSuccess: true };
+	},
+
+	updateEmail: async ({ request, locals }) => {
+		const data = await request.formData();
+		const email = String(data.get('email') ?? '').trim();
+		if (!email) return fail(400, { emailError: 'Enter an email address.' });
+
+		const { error } = await locals.supabase.auth.updateUser({ email });
+		if (error) return fail(400, { emailError: error.message });
+		return { emailSuccess: true };
+	},
+
+	updatePassword: async ({ request, locals }) => {
+		const data = await request.formData();
+		const password = String(data.get('password') ?? '');
+		const confirm = String(data.get('confirm') ?? '');
+
+		if (!password || password.length < 8) return fail(400, { passwordError: 'Password must be at least 8 characters.' });
+		if (password !== confirm) return fail(400, { passwordError: 'Passwords do not match.' });
+
+		const { error } = await locals.supabase.auth.updateUser({ password });
+		if (error) return fail(400, { passwordError: error.message });
+		return { passwordSuccess: true };
 	},
 
 	updateReminders: async ({ request, locals }) => {

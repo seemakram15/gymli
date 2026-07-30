@@ -18,8 +18,12 @@ export async function createSubscription(supabase, { user_id, package_id, gym_id
 	const dueDate = new Date(effectiveStart);
 	if (pkg.cycles?.interval_days) dueDate.setDate(dueDate.getDate() + pkg.cycles.interval_days);
 
-	const grossAmount = Number(amount_due) || Number(pkg.amount) || 0;
-	const netDiscount = Math.min(Number(discount) || 0, grossAmount);
+	// amount_due is the "Actual Fee" the caller already computed (plan price
+	// minus discount, live, in the UI) — it's the final amount to charge, not
+	// a gross figure to subtract from again here. discount is kept only as a
+	// record of how much was taken off.
+	const netAmount = Number(amount_due) || Number(pkg.amount) || 0;
+	const netDiscount = Number(discount) || 0;
 
 	const { data: subscription, error: err } = await supabase
 		.from('subscriptions')
@@ -29,7 +33,7 @@ export async function createSubscription(supabase, { user_id, package_id, gym_id
 			gym_id,
 			start_date: effectiveStart,
 			due_date: dueDate.toISOString().split('T')[0],
-			amount_due: grossAmount - netDiscount,
+			amount_due: netAmount,
 			discount: netDiscount,
 			amount_paid: 0,
 			payment_status: 'pending',
@@ -76,15 +80,34 @@ export async function renewSubscription(supabase, subscriptionId) {
 	return { subscription, pkg: current.packages };
 }
 
-export async function recordPayment(supabase, { user_id, subscription_id, gym_id, amount, method, notes }) {
+export async function recordPayment(supabase, { user_id, subscription_id, gym_id, amount, method, notes, receipt_url, paid_at }) {
 	if (subscription_id) {
 		const { data: existingSub } = await supabase
 			.from('subscriptions')
-			.select('payment_status')
+			.select('amount_due, amount_paid, payment_status')
 			.eq('id', subscription_id)
 			.single();
 		if (existingSub?.payment_status === 'paid') {
 			return { error: 'This subscription is already fully paid — there is nothing left due.' };
+		}
+		if (existingSub) {
+			const balance = Number(existingSub.amount_due) - Number(existingSub.amount_paid);
+			if (Number(amount) > balance) {
+				return { error: `This payment (PKR ${amount}) is more than the remaining balance of PKR ${balance} on this subscription. Reduce the amount or select a different subscription.` };
+			}
+		}
+	}
+
+	// A custom payment date only carries a calendar day (from a date picker), so
+	// the current time-of-day is grafted onto it — this keeps same-day payments
+	// ordered sensibly by `paid_at` instead of all collapsing to midnight.
+	const now = new Date();
+	let effectivePaidAt = now;
+	if (paid_at) {
+		const custom = new Date(`${paid_at}T00:00:00`);
+		if (!Number.isNaN(custom.getTime())) {
+			custom.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+			effectivePaidAt = custom;
 		}
 	}
 
@@ -97,12 +120,22 @@ export async function recordPayment(supabase, { user_id, subscription_id, gym_id
 			amount,
 			method: method || 'cash',
 			notes: notes || null,
+			receipt_url: receipt_url || null,
 			status: 'completed',
-			paid_at: new Date().toISOString(),
+			paid_at: effectivePaidAt.toISOString(),
 		})
 		.select()
 		.single();
-	if (err) return { error: err.message };
+	if (err) {
+		console.error('recordPayment insert failed:', err);
+		// PGRST204 ("Could not find the 'X' column ... in the schema cache") and
+		// other raw Postgres/PostgREST errors are meaningless to an admin — log
+		// the real cause above and surface something actionable instead.
+		const friendly = err.code === 'PGRST204'
+			? 'Payment could not be saved because the database is out of date. Please contact your administrator to apply the latest update.'
+			: 'Something went wrong while recording the payment. Please try again, or contact your administrator if this keeps happening.';
+		return { error: friendly };
+	}
 
 	let subscription = null;
 	if (subscription_id) {

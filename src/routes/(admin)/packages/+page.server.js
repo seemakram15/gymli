@@ -3,15 +3,24 @@ import { requireRole } from '$lib/server/rbac.js';
 
 export const load = async ({ locals }) => {
 	requireRole(locals, ['superadmin']);
-	const [{ data: packages }, { data: cycles }, { data: services }] = await Promise.all([
+	const [{ data: packages }, { data: cycles }, { data: services }, { data: activeSubs }] = await Promise.all([
 		locals.supabase
 			.from('packages')
 			.select('*, cycles(name, interval_days), package_services(service_id, services(name))')
 			.order('name'),
 		locals.supabase.from('cycles').select('id, name, interval_days'),
 		locals.supabase.from('services').select('id, name').eq('status', 'active'),
+		locals.supabase.from('subscriptions').select('package_id').eq('status', 'active'),
 	]);
-	return { packages: packages ?? [], cycles: cycles ?? [], services: services ?? [] };
+
+	const countByPackage = {};
+	for (const s of activeSubs ?? []) countByPackage[s.package_id] = (countByPackage[s.package_id] ?? 0) + 1;
+
+	return {
+		packages: (packages ?? []).map((p) => ({ ...p, memberCount: countByPackage[p.id] ?? 0 })),
+		cycles: cycles ?? [],
+		services: services ?? [],
+	};
 };
 
 export const actions = {

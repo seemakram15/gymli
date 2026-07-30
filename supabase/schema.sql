@@ -21,6 +21,7 @@ create table if not exists public.profiles (
   emergency_contact_phone text,
   medical_notes text,
   avatar_url text,
+  registration_code text unique,
   role text not null default 'member'
     check (role in ('superadmin', 'manager', 'instructor', 'staff', 'member')),
   status text not null default 'active'
@@ -175,6 +176,7 @@ create table if not exists public.payments (
     check (status in ('completed', 'failed', 'refunded')),
   reference_number text,
   notes text,
+  receipt_url text,
   paid_at timestamptz default now(),
   created_at timestamptz default now()
 );
@@ -233,6 +235,7 @@ insert into public.reminder_settings (gym_id) values (null) on conflict do nothi
 -- Run in Supabase Dashboard → Storage → Create Buckets:
 -- 1. "avatars"  — Public
 -- 2. "cnic"     — Private (or authenticated-only)
+-- 3. "receipts" — Private (or authenticated-only)
 
 -- ─────────────────────────────────────────────────────────────────
 -- ROW LEVEL SECURITY (RLS)

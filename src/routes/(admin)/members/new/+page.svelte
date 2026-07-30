@@ -15,6 +15,7 @@
 	// if a failed submission re-renders the page with a `form` prop that doesn't
 	// carry every field back — and so switching tabs never loses what was typed.
 	let fullName = $state(form?.full_name ?? '');
+	let registrationCode = $state('');
 	let email = $state(form?.email ?? '');
 	let password = $state('');
 	let phoneNumber = $state(form?.phone_number ?? '');
@@ -30,6 +31,7 @@
 	let packageId = $state('');
 	let startDate = $state(new Date().toISOString().split('T')[0]);
 	let amountDue = $state('');
+	let discount = $state('');
 
 	/** @type {FileList | undefined} */
 	let avatarFiles = $state();
@@ -75,13 +77,14 @@
 	function validate() {
 		const missing = [];
 		if (!fullName.trim()) missing.push({ tab: 'personal', label: 'Full Name' });
+		if (!registrationCode.trim()) missing.push({ tab: 'personal', label: 'Registration Code' });
 		if (!email.trim()) missing.push({ tab: 'personal', label: 'Email Address' });
 		else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) missing.push({ tab: 'personal', label: 'a valid Email Address' });
 		if (!phoneNumber.trim()) missing.push({ tab: 'contact', label: 'Phone Number' });
 		if (!gymId) missing.push({ tab: 'membership', label: 'Gym Location' });
 		if (!packageId) missing.push({ tab: 'membership', label: 'Membership Plan' });
 		if (!startDate) missing.push({ tab: 'membership', label: 'Membership Start Date' });
-		if (!String(amountDue).trim()) missing.push({ tab: 'membership', label: 'Fee Amount (PKR)' });
+		if (!String(amountDue).trim()) missing.push({ tab: 'membership', label: 'Actual Fee' });
 		return missing;
 	}
 
@@ -92,6 +95,14 @@
 			label: `${p.name} — PKR ${p.amount} / ${p.cycles?.name ?? 'custom'}`
 		}))
 	]);
+
+	const selectedPackage = $derived(data.packages.find((p) => p.id === packageId));
+
+	// Actual Fee always reflects plan price minus discount, live; still
+	// manually editable afterward until the plan or discount changes again.
+	$effect(() => {
+		if (selectedPackage) amountDue = String(Math.max(Number(selectedPackage.amount) - (Number(discount) || 0), 0));
+	});
 </script>
 
 <svelte:head><title>Add Member — GymLi</title></svelte:head>
@@ -179,6 +190,20 @@
 				<div>
 					<label class="label" for="full_name">Full Name <span class="text-red-500">*</span></label>
 					<input id="full_name" name="full_name" type="text" class="input" placeholder="Muhammad Ali" required bind:value={fullName} />
+				</div>
+				<div>
+					<label class="label" for="registration_code">Registration Code <span class="text-red-500">*</span></label>
+					<input
+						id="registration_code"
+						name="registration_code"
+						type="text"
+						class="input font-mono uppercase"
+						placeholder="e.g. GM-1001"
+						required
+						bind:value={registrationCode}
+						oninput={(e) => { registrationCode = e.currentTarget.value.toUpperCase(); e.currentTarget.value = registrationCode; }}
+					/>
+					<p class="text-xs text-gray-400 mt-1">Must be unique — this is the member's ID card / reference number</p>
 				</div>
 				<div>
 					<label class="label" for="gender">Gender</label>
@@ -294,9 +319,14 @@
 					<DatePicker id="start_date" name="start_date" bind:value={startDate} placeholder="Start date" />
 				</div>
 				<div>
-					<label class="label" for="amount_due">Fee Amount (PKR) <span class="text-red-500">*</span></label>
+					<label class="label" for="discount">Discount (PKR)</label>
+					<input id="discount" name="discount" type="number" class="input" placeholder="0" min="0" bind:value={discount} />
+					<p class="text-xs text-gray-400 mt-1">Optional — deducted from the plan price below</p>
+				</div>
+				<div>
+					<label class="label" for="amount_due">Actual Fee <span class="text-red-500">*</span></label>
 					<input id="amount_due" name="amount_due" type="number" class="input" placeholder="Auto-filled from plan" min="0" required bind:value={amountDue} />
-					<p class="text-xs text-gray-400 mt-1">Override plan amount if needed</p>
+					<p class="text-xs text-gray-400 mt-1">This fee will be charged</p>
 				</div>
 			</div>
 		</div>

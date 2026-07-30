@@ -8,7 +8,7 @@ export const load = async ({ locals }) => {
 	const gymId = scopeGymId(locals);
 
 	const { data: members } = await applyGymScope(
-		locals.supabase.from('profiles').select('id, full_name, phone_number').eq('role', 'member'),
+		locals.supabase.from('profiles').select('id, full_name, phone_number').eq('role', 'member').eq('status', 'active'),
 		gymId
 	).order('full_name');
 
@@ -42,6 +42,21 @@ export const actions = {
 		const gym_id = scopedGymId ?? (data.get('gym_id') || null);
 		if (!gym_id) return fail(400, { error: 'Select a gym.' });
 
+		let receipt_url = null;
+		const receiptFile = data.get('receipt');
+		if (receiptFile?.size) {
+			const ext = receiptFile.name.split('.').pop();
+			const { data: uploaded } = await locals.supabase.storage
+				.from('receipts')
+				.upload(`${user_id}/${Date.now()}.${ext}`, receiptFile, { upsert: true });
+			if (uploaded) {
+				const { data: { publicUrl } } = locals.supabase.storage.from('receipts').getPublicUrl(uploaded.path);
+				receipt_url = publicUrl;
+			}
+		}
+
+		const paid_at = data.get('paid_at') || null;
+
 		const { payment, subscription, error: err } = await recordPayment(locals.supabase, {
 			user_id,
 			subscription_id,
@@ -49,6 +64,8 @@ export const actions = {
 			amount,
 			method: data.get('method') || 'cash',
 			notes: data.get('notes') || null,
+			receipt_url,
+			paid_at,
 		});
 		if (err) return fail(400, { error: err });
 

@@ -1,6 +1,7 @@
 <script>
 	import { Printer } from 'lucide-svelte';
 	import { formatPKR, formatDateTime } from '$lib/utils/format.js';
+	import { goBack } from '$lib/utils/nav.js';
 
 	let { data } = $props();
 	const p = data.payment;
@@ -9,7 +10,8 @@
 <svelte:head><title>Receipt — GymLi</title></svelte:head>
 
 <div class="p-4 sm:p-6 max-w-lg mx-auto space-y-4">
-	<div class="flex justify-end print:hidden">
+	<div class="flex items-center justify-between print:hidden">
+		<button type="button" onclick={() => goBack('/payments')} class="text-sm text-ink-500 hover:text-ink-800">← Back to Payments</button>
 		<button onclick={() => window.print()} class="btn btn-primary"><Printer size={16} /> Print / Save as PDF</button>
 	</div>
 
@@ -35,6 +37,15 @@
 				<div class="col-span-2"><span class="text-ink-400">Notes</span><div class="font-medium text-ink-900">{p.notes}</div></div>
 			{/if}
 		</div>
+
+		{#if p.receipt_url}
+			<div class="border-t border-ink-100 pt-4 print:hidden">
+				<p class="text-xs uppercase tracking-wide text-ink-400 mb-2 text-center">Uploaded Receipt</p>
+				<a href={p.receipt_url} target="_blank" rel="noreferrer">
+					<img src={p.receipt_url} alt="Uploaded receipt" class="w-full rounded-lg border border-ink-100" />
+				</a>
+			</div>
+		{/if}
 
 		<div class="text-center text-xs text-ink-400 border-t border-ink-100 pt-4">Receipt ID: {p.id}</div>
 	</div>

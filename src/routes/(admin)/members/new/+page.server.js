@@ -22,6 +22,7 @@ export const actions = {
 
 		const email = formData.get('email');
 		const password = formData.get('password') || Math.random().toString(36).slice(-10);
+		const registration_code = String(formData.get('registration_code') ?? '').trim();
 		const full_name = formData.get('full_name');
 		const phone_number = formData.get('phone_number');
 		const cnic_number = formData.get('cnic_number');
@@ -38,14 +39,25 @@ export const actions = {
 		const package_id = formData.get('package_id') || null;
 		const start_date = formData.get('start_date') || null;
 		const amount_due = formData.get('amount_due');
+		const discount = formData.get('discount') || 0;
 
 		if (!full_name || !phone_number || !email) {
 			return fail(400, { error: 'Full name, email, and phone number are required.' });
 		}
+		if (!registration_code) return fail(400, { error: 'Registration code is required.' });
 		if (!gym_id) return fail(400, { error: 'Gym location is required.' });
 		if (!package_id) return fail(400, { error: 'Membership plan is required.' });
 		if (!start_date) return fail(400, { error: 'Membership start date is required.' });
 		if (!amount_due) return fail(400, { error: 'Fee amount is required.' });
+
+		// Checked up front, before the auth user is created, so a duplicate code
+		// fails fast instead of leaving behind an orphaned auth account.
+		const { data: existingCode } = await locals.supabase
+			.from('profiles')
+			.select('id')
+			.eq('registration_code', registration_code)
+			.maybeSingle();
+		if (existingCode) return fail(400, { error: `Registration code "${registration_code}" is already in use by another member.` });
 
 		// Create auth user via admin client (service role bypasses email confirmation)
 		const adminClient = createSupabaseAdminClient();
@@ -63,7 +75,7 @@ export const actions = {
 		if (!userId) return fail(500, { error: 'Failed to create user account.' });
 
 		// Upsert profile
-		await locals.supabase.from('profiles').upsert({
+		const { error: profileError } = await locals.supabase.from('profiles').upsert({
 			id: userId,
 			full_name,
 			phone_number,
@@ -76,9 +88,19 @@ export const actions = {
 			emergency_contact_phone,
 			medical_notes,
 			gym_id,
+			registration_code,
 			role: 'member',
 			status: 'active',
 		});
+		if (profileError) {
+			// Auth user already exists at this point — remove it so a failed
+			// enrollment doesn't leave behind a login with no profile.
+			await adminClient.auth.admin.deleteUser(userId);
+			const message = profileError.code === '23505'
+				? `Registration code "${registration_code}" is already in use by another member.`
+				: 'Could not save the member profile. Please try again.';
+			return fail(400, { error: message });
+		}
 
 		// Upload avatar + CNIC front/back concurrently (each is a separate network
 		// round-trip to Storage; running them in sequence made real phone photos
@@ -115,7 +137,7 @@ export const actions = {
 		// Create subscription if a package was selected during enrollment
 		let subResult = null;
 		if (package_id) {
-			subResult = await createSubscription(locals.supabase, { user_id: userId, package_id, gym_id, start_date, amount_due });
+			subResult = await createSubscription(locals.supabase, { user_id: userId, package_id, gym_id, start_date, amount_due, discount });
 		}
 
 		// Send welcome (+ subscription confirmation, if enrolled with a plan) email.
@@ -124,7 +146,7 @@ export const actions = {
 			const gymName = gym_id
 				? (await locals.supabase.from('gyms').select('name').eq('id', gym_id).single()).data?.name
 				: null;
-			const welcome = memberWelcomeEmail({ full_name, email, password, gymName, planName: subResult?.pkg?.name });
+			const welcome = memberWelcomeEmail({ full_name, email, password, gymName, planName: subResult?.pkg?.name, registrationCode: registration_code });
 			const emailSends = [sendEmail(email, welcome.subject, welcome.html)];
 			if (subResult?.subscription && subResult?.pkg) {
 				const confirmation = subscriptionConfirmationEmail({

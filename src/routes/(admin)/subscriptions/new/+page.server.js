@@ -9,7 +9,7 @@ export const load = async ({ locals, url }) => {
 	const user_id = url.searchParams.get('user_id') ?? '';
 
 	const { data: members } = await applyGymScope(
-		locals.supabase.from('profiles').select('id, full_name, phone_number').eq('role', 'member'),
+		locals.supabase.from('profiles').select('id, full_name, phone_number').eq('role', 'member').eq('status', 'active'),
 		gymId
 	).order('full_name');
 

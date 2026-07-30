@@ -1,7 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Plus, Phone, Pencil, Trash2, User, Camera } from 'lucide-svelte';
-	import { initials, memberStatusBadge } from '$lib/utils/format.js';
+	import { Plus, Phone, Pencil, Trash2, User, Camera, Search } from 'lucide-svelte';
+	import { initials } from '$lib/utils/format.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Select from '$lib/components/Select.svelte';
@@ -34,6 +34,14 @@
 	const isManager = $derived(data.profile?.role === 'manager');
 
 	const roleColors = { manager: 'badge-blue', instructor: 'badge-green', staff: 'badge-gray' };
+	const roleAvatarBg = {
+		manager: 'linear-gradient(135deg, #60a5fa, #3b82f6)',
+		instructor: 'linear-gradient(135deg, var(--color-volt-400), var(--color-volt-500))',
+		staff: 'linear-gradient(135deg, #cbd5e1, #94a3b8)',
+	};
+	function roleLabel(role) {
+		return role === 'instructor' ? 'Instructor / Trainer' : role === 'manager' ? 'Manager / Front Desk' : 'Staff';
+	}
 
 	const allRoleOptions = [
 		{ value: 'manager', label: 'Manager / Front Desk' },
@@ -71,6 +79,16 @@
 		if (formEl instanceof HTMLFormElement) formEl.requestSubmit();
 		confirmOpen = false;
 	}
+
+	let search = $state('');
+	const filteredStaff = $derived(
+		search.trim()
+			? data.staff.filter((s) => {
+					const q = search.trim().toLowerCase();
+					return s.full_name?.toLowerCase().includes(q) || s.phone_number?.toLowerCase().includes(q);
+				})
+			: data.staff
+	);
 </script>
 
 <svelte:head><title>Staff — GymLi</title></svelte:head>
@@ -92,42 +110,52 @@
 		<div class="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">{form.error}</div>
 	{/if}
 
-	<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-		{#each data.staff as s}
-			<div class="card p-5">
-				<div class="flex items-center gap-4 mb-3">
+	<div class="relative max-w-sm">
+		<Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+		<input class="input pl-9" placeholder="Search by name or phone…" bind:value={search} />
+	</div>
+
+	<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+		{#each filteredStaff as s}
+			{@const active = (s.status ?? 'active') === 'active'}
+			<div class="card p-5 sm:p-6 flex flex-col hover:shadow-md hover:border-ink-200 transition-all">
+				<div class="flex items-center gap-1.5 self-end -mt-1 -mr-1 mb-1">
+					<span class="w-1.5 h-1.5 rounded-full {active ? 'bg-green-500' : 'bg-ink-300'}"></span>
+					<span class="text-xs font-medium capitalize {active ? 'text-green-600' : 'text-ink-400'}">{s.status ?? 'active'}</span>
+				</div>
+
+				<div class="flex items-center gap-4 mb-4">
 					{#if s.avatar_url}
-						<img src={s.avatar_url} alt={s.full_name} class="w-12 h-12 rounded-xl object-cover shrink-0" />
+						<img src={s.avatar_url} alt={s.full_name} class="w-16 h-16 rounded-2xl object-cover shrink-0 ring-1 ring-ink-100" />
 					{:else}
-						<div class="w-12 h-12 bg-ink-900 text-volt-300 rounded-xl flex items-center justify-center font-bold text-lg shrink-0">
+						<div class="w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-xl shrink-0 text-white" style="background: {roleAvatarBg[s.role] ?? roleAvatarBg.staff};">
 							{initials(s.full_name)}
 						</div>
 					{/if}
-					<div class="flex-1 min-w-0">
-						<div class="font-semibold text-ink-900 truncate">{s.full_name}</div>
-						<span class="{roleColors[s.role] ?? 'badge-gray'} mt-0.5">{s.role}</span>
+					<div class="min-w-0">
+						<h3 class="font-display font-bold text-ink-900 text-lg truncate">{s.full_name}</h3>
+						<span class="{roleColors[s.role] ?? 'badge-gray'} mt-1 w-fit">{roleLabel(s.role)}</span>
 					</div>
 				</div>
-				{#if s.phone_number}
-					<div class="flex items-center gap-2 text-sm text-ink-500">
-						<Phone size={13} />{s.phone_number}
-					</div>
-				{/if}
-				{#if s.city}
-					<div class="text-sm text-ink-400 mt-1">{s.city}</div>
-				{/if}
-				<div class="mt-2 flex items-center justify-between">
-					<span class="{memberStatusBadge(s.status ?? 'active')}">{s.status ?? 'active'}</span>
-					{#if (isSuperadmin || isManager) && !(isManager && s.role === 'manager')}
-						<div class="flex items-center gap-3">
-							<button type="button" onclick={() => openEdit(s)} class="text-ink-400 hover:text-ink-800 transition-colors" aria-label="Edit staff member"><Pencil size={14} /></button>
-							<button type="button" onclick={() => askDelete(s)} class="text-ink-400 hover:text-red-600 transition-colors" aria-label="Remove staff member"><Trash2 size={14} /></button>
-						</div>
+
+				<div class="space-y-2 text-sm text-ink-500 flex-1 border-t border-ink-100 pt-3">
+					{#if s.phone_number}
+						<div class="flex items-center gap-2"><Phone size={13} class="shrink-0 text-ink-300" />{s.phone_number}</div>
+					{/if}
+					{#if s.city}
+						<div class="flex items-center gap-2"><span class="w-[13px] text-center text-ink-300">·</span>{s.city}</div>
 					{/if}
 				</div>
+
+				{#if (isSuperadmin || isManager) && !(isManager && s.role === 'manager')}
+					<div class="flex justify-end gap-4 mt-4 pt-3 border-t border-ink-100">
+						<button type="button" onclick={() => openEdit(s)} class="flex items-center gap-1.5 text-xs font-medium text-ink-400 hover:text-ink-800 transition-colors"><Pencil size={13} /> Edit</button>
+						<button type="button" onclick={() => askDelete(s)} class="flex items-center gap-1.5 text-xs font-medium text-ink-400 hover:text-red-600 transition-colors"><Trash2 size={13} /> Remove</button>
+					</div>
+				{/if}
 			</div>
 		{:else}
-			<div class="md:col-span-3 card p-12 text-center text-ink-400">No staff members yet. Add your first team member.</div>
+			<div class="md:col-span-3 card p-12 text-center text-ink-400">{search.trim() ? 'No staff match your search.' : 'No staff members yet. Add your first team member.'}</div>
 		{/each}
 	</div>
 </div>

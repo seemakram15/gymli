@@ -2,15 +2,28 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
-	import { TrendingUp, Calendar, ChevronLeft, ChevronRight, Pencil, Ban, Receipt } from 'lucide-svelte';
+	import { TrendingUp, Calendar, ChevronLeft, ChevronRight, Pencil, Ban, Receipt, FileText, Search } from 'lucide-svelte';
 	import { formatPKR, formatDateTime } from '$lib/utils/format.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Select from '$lib/components/Select.svelte';
+	import SortableTh from '$lib/components/SortableTh.svelte';
 
 	let { data, form } = $props();
 
 	const canManage = $derived(data.profile?.role === 'superadmin' || data.profile?.role === 'manager');
+
+	let search = $state(data.search ?? '');
+	let debounce;
+	function onSearch() {
+		clearTimeout(debounce);
+		debounce = setTimeout(() => {
+			const params = new URLSearchParams($page.url.searchParams);
+			params.set('search', search);
+			params.set('page', '1');
+			goto(`?${params}`, { replaceState: true });
+		}, 300);
+	}
 
 	let editingPayment = $state(null);
 	let editMethod = $state('cash');
@@ -47,6 +60,15 @@
 	}
 
 	const totalPages = $derived(Math.ceil(data.total / data.perPage));
+
+	function sortBy(column) {
+		const params = new URLSearchParams($page.url.searchParams);
+		const nextDir = data.sort === column && data.dir === 'asc' ? 'desc' : 'asc';
+		params.set('sort', column);
+		params.set('dir', nextDir);
+		params.set('page', '1');
+		goto(`?${params}`);
+	}
 </script>
 
 <svelte:head><title>Payments — GymLi</title></svelte:head>
@@ -76,14 +98,20 @@
 		{/each}
 	</div>
 
-	<!-- Range Filter -->
-	<div class="flex gap-2">
-		{#each [['today','Today'],['week','This Week'],['month','This Month'],['all','All Time']] as [val, label]}
-			<button
-				onclick={() => setRange(val)}
-				class="btn btn-sm {data.range === val ? 'btn-primary' : 'btn-secondary'}"
-			>{label}</button>
-		{/each}
+	<!-- Search + Range Filter -->
+	<div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+		<div class="relative flex-1 max-w-sm">
+			<Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+			<input class="input pl-9" placeholder="Search by member name or phone…" bind:value={search} oninput={onSearch} />
+		</div>
+		<div class="flex gap-2 flex-wrap">
+			{#each [['today','Today'],['week','This Week'],['month','This Month'],['all','All Time']] as [val, label]}
+				<button
+					onclick={() => setRange(val)}
+					class="btn btn-sm {data.range === val ? 'btn-primary' : 'btn-secondary'}"
+				>{label}</button>
+			{/each}
+		</div>
 	</div>
 
 	<!-- Table -->
@@ -91,18 +119,18 @@
 		<table>
 			<thead>
 				<tr>
-					<th>Member</th>
-					<th>Amount</th>
-					<th>Method</th>
-					<th>Gym</th>
-					<th>Date & Time</th>
+					<SortableTh label="Member" active={data.sort === 'member'} dir={data.dir} onclick={() => sortBy('member')} />
+					<SortableTh label="Amount" active={data.sort === 'amount'} dir={data.dir} onclick={() => sortBy('amount')} />
+					<SortableTh label="Method" active={data.sort === 'method'} dir={data.dir} onclick={() => sortBy('method')} />
+					<SortableTh label="Gym" active={data.sort === 'gym'} dir={data.dir} onclick={() => sortBy('gym')} />
+					<SortableTh label="Date & Time" active={data.sort === 'paid_at'} dir={data.dir} onclick={() => sortBy('paid_at')} />
 					<th>Notes</th>
 					{#if canManage}<th class="text-right">Actions</th>{/if}
 				</tr>
 			</thead>
 			<tbody>
 				{#each data.payments as p}
-					<tr>
+					<tr onclick={() => goto(`/payments/${p.id}/receipt`)} class="cursor-pointer">
 						<td>
 							<div class="font-medium text-gray-900">{p.profiles?.full_name ?? '—'}</div>
 							<div class="text-xs text-gray-400">{p.profiles?.phone_number ?? ''}</div>
@@ -114,8 +142,11 @@
 						<td class="text-gray-400">{p.notes ?? '—'}</td>
 						{#if canManage}
 							<td class="text-right">
-								<div class="flex items-center gap-3 justify-end">
+								<div class="flex items-center gap-3 justify-end" onclick={(e) => e.stopPropagation()}>
 									<a href="/payments/{p.id}/receipt" class="text-ink-400 hover:text-ink-800 transition-colors" aria-label="View receipt"><Receipt size={14} /></a>
+									{#if p.receipt_url}
+										<a href={p.receipt_url} target="_blank" rel="noreferrer" class="text-ink-400 hover:text-ink-800 transition-colors" aria-label="View uploaded receipt"><FileText size={14} /></a>
+									{/if}
 									<button type="button" onclick={() => openEdit(p)} class="text-ink-400 hover:text-ink-800 transition-colors" aria-label="Edit payment"><Pencil size={14} /></button>
 									<button type="button" onclick={() => askVoid(p)} class="text-ink-400 hover:text-red-600 transition-colors" aria-label="Void payment"><Ban size={14} /></button>
 								</div>

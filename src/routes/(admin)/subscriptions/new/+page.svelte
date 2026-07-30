@@ -35,13 +35,19 @@
 	const selectedPackage = $derived(data.packages.find((p) => p.id === packageId));
 	let clientError = $state('');
 
+	// Actual Fee always reflects plan price minus discount, live; still
+	// manually editable afterward until the plan or discount changes again.
+	$effect(() => {
+		if (selectedPackage) amountDue = String(Math.max(Number(selectedPackage.amount) - (Number(discount) || 0), 0));
+	});
+
 	function validate() {
 		const missing = [];
 		if (!data.member && !userId) missing.push('Member');
 		if (!packageId) missing.push('Membership Plan');
 		if (!gymId) missing.push('Gym Location');
 		if (!startDate) missing.push('Start Date');
-		if (!String(amountDue).trim()) missing.push('Fee Amount (PKR)');
+		if (!String(amountDue).trim()) missing.push('Actual Fee');
 		return missing;
 	}
 </script>
@@ -101,7 +107,12 @@
 				<DatePicker id="start_date" name="start_date" bind:value={startDate} placeholder="Start date" />
 			</div>
 			<div>
-				<label class="label" for="amount_due">Fee Amount (PKR) <span class="text-red-500">*</span></label>
+				<label class="label" for="discount">Discount (PKR)</label>
+				<input id="discount" name="discount" type="number" class="input" placeholder="0" min="0" bind:value={discount} />
+				<p class="text-xs text-ink-400 mt-1">Optional — deducted from the plan price below.</p>
+			</div>
+			<div>
+				<label class="label" for="amount_due">Actual Fee <span class="text-red-500">*</span></label>
 				<input
 					id="amount_due"
 					name="amount_due"
@@ -112,12 +123,7 @@
 					required
 					bind:value={amountDue}
 				/>
-				<p class="text-xs text-ink-400 mt-1">{selectedPackage ? `Plan price: ${formatPKR(selectedPackage.amount)}` : 'Select a plan to see its price'}</p>
-			</div>
-			<div>
-				<label class="label" for="discount">Discount (PKR)</label>
-				<input id="discount" name="discount" type="number" class="input" placeholder="0" min="0" bind:value={discount} />
-				<p class="text-xs text-ink-400 mt-1">Optional — deducted from the fee amount above.</p>
+				<p class="text-xs text-ink-400 mt-1">This fee will be charged</p>
 			</div>
 			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
 				<button type="button" onclick={() => goBack(data.member ? `/members/${data.member.id}` : '/subscriptions')} class="btn btn-secondary flex-1 text-center">Cancel</button>

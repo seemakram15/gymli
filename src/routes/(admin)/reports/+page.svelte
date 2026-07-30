@@ -1,10 +1,11 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { Download, Banknote, CreditCard, Landmark, Globe, Wallet } from 'lucide-svelte';
+	import { Download, Search } from 'lucide-svelte';
 	import { formatPKR, formatDateTime } from '$lib/utils/format.js';
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import Select from '$lib/components/Select.svelte';
+	import SortableTh from '$lib/components/SortableTh.svelte';
 
 	let { data } = $props();
 	let from = $state(data.from);
@@ -22,20 +23,39 @@
 		...data.gyms.map((g) => ({ value: g.id, label: g.name }))
 	]);
 
-	const methodMeta = {
-		cash: { label: 'Cash', icon: Banknote, color: 'bg-green-500', text: 'text-green-700', bg: 'bg-green-50' },
-		card: { label: 'Card', icon: CreditCard, color: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' },
-		bank_transfer: { label: 'Bank Transfer', icon: Landmark, color: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50' },
-		online: { label: 'Online', icon: Globe, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
-	};
-	function methodInfo(method) {
-		return methodMeta[method] ?? { label: method, icon: Wallet, color: 'bg-ink-400', text: 'text-ink-700', bg: 'bg-ink-50' };
-	}
+	let search = $state('');
+	const searchedPayments = $derived(
+		search.trim()
+			? data.payments.filter((p) => {
+					const q = search.trim().toLowerCase();
+					return (
+						p.profiles?.full_name?.toLowerCase().includes(q) ||
+						p.method?.toLowerCase().includes(q) ||
+						String(p.amount).includes(q)
+					);
+				})
+			: data.payments
+	);
 
-	const methodBreakdown = $derived(
-		Object.entries(data.byMethod)
-			.map(([method, amount]) => ({ method, amount, pct: data.totalCollected ? (Number(amount) / data.totalCollected) * 100 : 0 }))
-			.sort((a, b) => b.amount - a.amount)
+	let sortCol = $state('paid_at');
+	let sortDir = $state('desc');
+	function sortBy(col) {
+		if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+		else { sortCol = col; sortDir = 'asc'; }
+	}
+	const sortAccessors = {
+		member: (p) => p.profiles?.full_name ?? '',
+		amount: (p) => Number(p.amount),
+		method: (p) => p.method ?? '',
+		paid_at: (p) => p.paid_at ?? '',
+	};
+	const filteredPayments = $derived(
+		[...searchedPayments].sort((a, b) => {
+			const va = sortAccessors[sortCol](a);
+			const vb = sortAccessors[sortCol](b);
+			const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+			return sortDir === 'asc' ? cmp : -cmp;
+		})
 	);
 
 	function applyFilter() {
@@ -50,7 +70,7 @@
 	function downloadCSV() {
 		const rows = [
 			['Member', 'Amount', 'Method', 'Date'],
-			...data.payments.map((p) => [p.profiles?.full_name ?? '—', p.amount, p.method, p.paid_at])
+			...filteredPayments.map((p) => [p.profiles?.full_name ?? '—', p.amount, p.method, p.paid_at])
 		];
 		const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
 		const a = document.createElement('a');
@@ -102,42 +122,23 @@
 		</div>
 	</div>
 
-	{#if methodBreakdown.length}
-		<div class="card card-body">
-			<h3 class="font-semibold text-ink-900 mb-4">Collections by Payment Method</h3>
-			<div class="space-y-4">
-				{#each methodBreakdown as { method, amount, pct }}
-					{@const info = methodInfo(method)}
-					<div class="flex items-center gap-4">
-						<div class="w-10 h-10 rounded-xl {info.bg} {info.text} flex items-center justify-center shrink-0">
-							<info.icon size={18} />
-						</div>
-						<div class="flex-1 min-w-0">
-							<div class="flex items-baseline justify-between gap-2 mb-1.5">
-								<span class="font-medium text-ink-900 text-sm">{info.label}</span>
-								<span class="text-sm text-ink-500 shrink-0">{formatPKR(amount)} <span class="text-ink-400">({pct.toFixed(0)}%)</span></span>
-							</div>
-							<div class="h-2 rounded-full bg-ink-100 overflow-hidden">
-								<div class="h-full rounded-full {info.color}" style="width: {pct}%"></div>
-							</div>
-						</div>
-					</div>
-				{/each}
-			</div>
-			<div class="mt-5 pt-4 border-t border-ink-100 flex items-center justify-between">
-				<span class="text-sm text-ink-500">Total Collected</span>
-				<span class="font-bold text-ink-900">{formatPKR(data.totalCollected)}</span>
-			</div>
-		</div>
-	{/if}
+	<div class="relative max-w-sm">
+		<Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+		<input class="input pl-9" placeholder="Search by member, amount, or method…" bind:value={search} />
+	</div>
 
 	<div class="table-wrapper">
 		<table>
 			<thead>
-				<tr><th>Member</th><th>Amount</th><th>Method</th><th>Date & Time</th></tr>
+				<tr>
+					<SortableTh label="Member" active={sortCol === 'member'} dir={sortDir} onclick={() => sortBy('member')} />
+					<SortableTh label="Amount" active={sortCol === 'amount'} dir={sortDir} onclick={() => sortBy('amount')} />
+					<SortableTh label="Method" active={sortCol === 'method'} dir={sortDir} onclick={() => sortBy('method')} />
+					<SortableTh label="Date & Time" active={sortCol === 'paid_at'} dir={sortDir} onclick={() => sortBy('paid_at')} />
+				</tr>
 			</thead>
 			<tbody>
-				{#each data.payments as p}
+				{#each filteredPayments as p}
 					<tr>
 						<td class="font-medium">{p.profiles?.full_name ?? '—'}</td>
 						<td class="text-volt-700 font-semibold">{formatPKR(p.amount)}</td>
@@ -145,7 +146,7 @@
 						<td class="text-ink-500">{formatDateTime(p.paid_at)}</td>
 					</tr>
 				{:else}
-					<tr><td colspan="4" class="text-center py-12 text-ink-400">No payments in selected date range</td></tr>
+					<tr><td colspan="4" class="text-center py-12 text-ink-400">{search.trim() ? 'No payments match your search.' : 'No payments in selected date range'}</td></tr>
 				{/each}
 			</tbody>
 		</table>

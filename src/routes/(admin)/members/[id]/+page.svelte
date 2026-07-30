@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Phone, MapPin, Shield, CreditCard, Calendar, Plus, Edit2, CheckCircle, Upload } from 'lucide-svelte';
+	import { Phone, MapPin, Shield, CreditCard, Calendar, Plus, Edit2, CheckCircle, Upload, Camera } from 'lucide-svelte';
 	import { formatPKR, formatDate, formatDateTime, initials, paymentStatusBadge, memberStatusBadge, formatCNIC } from '$lib/utils/format.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import Select from '$lib/components/Select.svelte';
@@ -18,6 +18,18 @@
 	let payMethod = $state('cash');
 	let payGymId = $state('');
 	let docsLoading = $state(false);
+
+	/** @type {FileList | undefined} */
+	let avatarFiles = $state();
+	/** @type {FileList | undefined} */
+	let cnicFrontFiles = $state();
+	/** @type {FileList | undefined} */
+	let cnicBackFiles = $state();
+
+	const avatarPreview = $derived(avatarFiles?.[0] ? URL.createObjectURL(avatarFiles[0]) : '');
+	const cnicFrontPreview = $derived(cnicFrontFiles?.[0] ? URL.createObjectURL(cnicFrontFiles[0]) : '');
+	const cnicBackPreview = $derived(cnicBackFiles?.[0] ? URL.createObjectURL(cnicBackFiles[0]) : '');
+	const hasPendingDocChanges = $derived(!!(avatarFiles?.[0] || cnicFrontFiles?.[0] || cnicBackFiles?.[0]));
 
 	const tabs = $derived([
 		{ id: 'profile',       label: 'Profile' },
@@ -104,6 +116,9 @@
 					{#if data.profile.cnic_number}
 						<span class="flex items-center gap-1"><Shield size={13} />{data.profile.cnic_number}</span>
 					{/if}
+					{#if data.profile.registration_code}
+						<span class="badge-gray font-mono">{data.profile.registration_code}</span>
+					{/if}
 				</div>
 				<div class="mt-3 flex gap-4 text-sm">
 					<div class="bg-green-50 text-green-700 rounded-lg px-3 py-1.5">
@@ -161,6 +176,16 @@
 			<div class="card overflow-x-auto">
 				<table class="w-full min-w-[640px] text-sm border-collapse">
 					<tbody>
+						<tr class="border-b border-ink-100">
+							<td class="w-40 sm:w-48 px-5 py-4 bg-ink-50 text-xs font-semibold text-ink-500 uppercase tracking-wider align-top">Registration Code</td>
+							<td class="px-5 py-4 align-top" colspan="3">
+								{#if editMode}
+									<input name="registration_code" class="input font-mono uppercase max-w-xs" required value={data.profile.registration_code ?? ''} placeholder="e.g. GM-1001" />
+								{:else}
+									<span class="text-ink-900 font-mono">{data.profile.registration_code ?? '—'}</span>
+								{/if}
+							</td>
+						</tr>
 						<tr class="border-b border-ink-100">
 							<td class="w-40 sm:w-48 px-5 py-4 bg-ink-50 text-xs font-semibold text-ink-500 uppercase tracking-wider align-top">Full Name</td>
 							<td class="px-5 py-4 align-top">
@@ -351,56 +376,56 @@
 
 	<!-- Documents Tab -->
 	{#if tab === 'documents'}
-		<div class="grid md:grid-cols-2 gap-6">
-			<div class="card card-body">
-				<h4 class="font-semibold text-ink-900 mb-3">Profile Photo</h4>
-				{#if data.profile.avatar_url}
-					<img src={data.profile.avatar_url} alt="Profile" class="rounded-lg border border-ink-100 w-full object-cover aspect-square" />
-				{:else}
-					<div class="border-2 border-dashed border-ink-100 rounded-lg p-12 text-center text-ink-400">No profile photo uploaded</div>
-				{/if}
-			</div>
-			<div class="card card-body">
-				<h4 class="font-semibold text-ink-900 mb-3">CNIC Front</h4>
-				{#if data.profile.cnic_front_url}
-					<img src={data.profile.cnic_front_url} alt="CNIC Front" class="rounded-lg border border-ink-100 w-full object-cover" />
-				{:else}
-					<div class="border-2 border-dashed border-ink-100 rounded-lg p-12 text-center text-ink-400">No CNIC front uploaded</div>
-				{/if}
-			</div>
-			<div class="card card-body">
-				<h4 class="font-semibold text-ink-900 mb-3">CNIC Back</h4>
-				{#if data.profile.cnic_back_url}
-					<img src={data.profile.cnic_back_url} alt="CNIC Back" class="rounded-lg border border-ink-100 w-full object-cover" />
-				{:else}
-					<div class="border-2 border-dashed border-ink-100 rounded-lg p-12 text-center text-ink-400">No CNIC back uploaded</div>
-				{/if}
+		{@const canEdit = data.viewerRole === 'superadmin' || data.viewerRole === 'manager'}
+		<form
+			method="POST"
+			action="?/uploadDocuments"
+			enctype="multipart/form-data"
+			use:enhance={() => {
+				docsLoading = true;
+				return async ({ update }) => { await update(); docsLoading = false; avatarFiles = cnicFrontFiles = cnicBackFiles = undefined; };
+			}}
+		>
+			{#if form?.error}<div class="bg-red-50 text-red-700 rounded-xl px-3 py-2 text-sm mb-4">{form.error}</div>{/if}
+
+			<div class="grid md:grid-cols-2 gap-6">
+				{#snippet docCard(title, currentUrl, preview, name, aspect, onchange)}
+					<div class="card card-body">
+						<h4 class="font-semibold text-ink-900 mb-3">{title}</h4>
+						{#if canEdit}
+							<label class="relative block cursor-pointer group">
+								{#if preview || currentUrl}
+									<img src={preview || currentUrl} alt={title} class="rounded-lg border border-ink-100 w-full object-cover {aspect}" />
+									<span class="absolute bottom-2 right-2 inline-flex items-center gap-1.5 bg-ink-900/90 text-volt-300 text-xs font-semibold px-3 py-1.5 rounded-lg group-hover:bg-ink-800 transition-colors">
+										<Camera size={13} /> Update
+									</span>
+								{:else}
+									<div class="border-2 border-dashed border-ink-200 rounded-lg p-12 text-center text-ink-400 hover:border-ink-400 hover:text-ink-500 transition-colors flex flex-col items-center gap-2">
+										<Upload size={22} />
+										<span class="text-sm font-medium">Click to upload {title.toLowerCase()}</span>
+									</div>
+								{/if}
+								<input {name} type="file" accept="image/*" class="sr-only" onchange={(e) => onchange(e.currentTarget.files)} />
+							</label>
+						{:else if currentUrl}
+							<img src={currentUrl} alt={title} class="rounded-lg border border-ink-100 w-full object-cover {aspect}" />
+						{:else}
+							<div class="border-2 border-dashed border-ink-100 rounded-lg p-12 text-center text-ink-400">No {title.toLowerCase()} uploaded</div>
+						{/if}
+					</div>
+				{/snippet}
+
+				{@render docCard('Profile Photo', data.profile.avatar_url, avatarPreview, 'avatar', 'aspect-square', (files) => (avatarFiles = files))}
+				{@render docCard('CNIC Front', data.profile.cnic_front_url, cnicFrontPreview, 'cnic_front', '', (files) => (cnicFrontFiles = files))}
+				{@render docCard('CNIC Back', data.profile.cnic_back_url, cnicBackPreview, 'cnic_back', '', (files) => (cnicBackFiles = files))}
 			</div>
 
-			{#if data.viewerRole === 'superadmin' || data.viewerRole === 'manager'}
-				<div class="card card-body md:col-span-2">
-					<h4 class="font-semibold text-ink-900 mb-3 flex items-center gap-2"><Upload size={16} /> Upload Documents</h4>
-					{#if form?.error}<div class="bg-red-50 text-red-700 rounded-xl px-3 py-2 text-sm mb-3">{form.error}</div>{/if}
-					<form
-						method="POST"
-						action="?/uploadDocuments"
-						enctype="multipart/form-data"
-						use:enhance={() => {
-							docsLoading = true;
-							return async ({ update }) => { await update(); docsLoading = false; };
-						}}
-						class="grid sm:grid-cols-3 gap-3"
-					>
-						<div><label class="label">Profile Photo</label><input name="avatar" type="file" accept="image/*" class="input" /></div>
-						<div><label class="label">CNIC Front</label><input name="cnic_front" type="file" accept="image/*" class="input" /></div>
-						<div><label class="label">CNIC Back</label><input name="cnic_back" type="file" accept="image/*" class="input" /></div>
-						<div class="sm:col-span-3">
-							<button type="submit" class="btn btn-primary" disabled={docsLoading}>{docsLoading ? 'Uploading…' : 'Upload'}</button>
-						</div>
-					</form>
+			{#if canEdit && hasPendingDocChanges}
+				<div class="mt-4">
+					<button type="submit" class="btn btn-primary" disabled={docsLoading}>{docsLoading ? 'Saving…' : 'Save Changes'}</button>
 				</div>
 			{/if}
-		</div>
+		</form>
 	{/if}
 </div>
 

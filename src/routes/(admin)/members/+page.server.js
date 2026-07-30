@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { requireRole, requireGymAccess, scopeGymId, applyGymScope } from '$lib/server/rbac.js';
 import { manualMessageEmail, sendEmail } from '$lib/server/email.js';
+import { createSupabaseAdminClient } from '$lib/server/supabase.js';
 
 export const load = async ({ locals, url }) => {
 	requireRole(locals, ['superadmin', 'manager', 'instructor', 'staff']);
@@ -9,6 +10,10 @@ export const load = async ({ locals, url }) => {
 	const gym_id = url.searchParams.get('gym_id') ?? '';
 	const page = parseInt(url.searchParams.get('page') ?? '1');
 	const perPage = 20;
+
+	const sortableColumns = ['full_name', 'registration_code', 'cnic_number', 'phone_number', 'status', 'created_at'];
+	const sort = sortableColumns.includes(url.searchParams.get('sort')) ? url.searchParams.get('sort') : 'full_name';
+	const dir = url.searchParams.get('dir') === 'desc' ? 'desc' : 'asc';
 
 	const scopedGymId = scopeGymId(locals);
 
@@ -24,13 +29,13 @@ export const load = async ({ locals, url }) => {
 	let query = applyGymScope(
 		locals.supabase
 			.from('profiles')
-			.select('id, full_name, phone_number, cnic_number, city, role, status, created_at, avatar_url, gym_id', { count: 'exact' })
+			.select('id, full_name, phone_number, cnic_number, city, role, status, created_at, avatar_url, gym_id, registration_code', { count: 'exact' })
 			.eq('role', 'member'),
 		scopedGymId
-	).order('full_name');
+	).order(sort, { ascending: dir === 'asc' });
 
 	if (search) {
-		query = query.or(`full_name.ilike.%${search}%,phone_number.ilike.%${search}%,cnic_number.ilike.%${search}%`);
+		query = query.or(`full_name.ilike.%${search}%,phone_number.ilike.%${search}%,cnic_number.ilike.%${search}%,registration_code.ilike.%${search}%`);
 	}
 	if (status === 'overdue') {
 		query = query.in('id', overdueIds.size ? Array.from(overdueIds) : ['00000000-0000-0000-0000-000000000000']);
@@ -45,17 +50,54 @@ export const load = async ({ locals, url }) => {
 
 	const { data: members, count, error } = await query;
 
+	// Payable fee is the subscription's net amount_due — the actual amount the
+	// member is billed each cycle after any discount, not the plan's list price.
+	const memberIds = (members ?? []).map((m) => m.id);
+	const { data: activeSubs } = memberIds.length
+		? await locals.supabase
+				.from('subscriptions')
+				.select('user_id, amount_due')
+				.in('user_id', memberIds)
+				.eq('status', 'active')
+		: { data: [] };
+	const feeByUser = new Map();
+	for (const s of activeSubs ?? []) {
+		if (!feeByUser.has(s.user_id)) feeByUser.set(s.user_id, s.amount_due ?? null);
+	}
+
 	return {
-		members: (members ?? []).map((m) => ({ ...m, isOverdue: overdueIds.has(m.id) })),
+		members: (members ?? []).map((m) => ({ ...m, isOverdue: overdueIds.has(m.id), payableFee: feeByUser.get(m.id) ?? null })),
 		total: count ?? 0,
 		page,
 		perPage,
 		search,
 		status,
+		sort,
+		dir,
 	};
 };
 
 export const actions = {
+	delete: async ({ request, locals }) => {
+		requireRole(locals, ['superadmin', 'manager']);
+		const data = await request.formData();
+		const id = data.get('id');
+
+		const { data: target } = await locals.supabase.from('profiles').select('gym_id').eq('id', id).single();
+		if (!target) return fail(400, { deleteError: 'Member not found.' });
+		requireGymAccess(locals, target.gym_id);
+
+		// profiles.id references auth.users(id) on delete cascade, and
+		// subscriptions/payments/attendance/reminder_log all reference
+		// profiles(id) on delete cascade — deleting the auth user removes
+		// every associated record in one shot.
+		const adminClient = createSupabaseAdminClient();
+		const { error } = await adminClient.auth.admin.deleteUser(id);
+		if (error) return fail(400, { deleteError: error.message });
+
+		return { deleteSuccess: true };
+	},
+
 	sendMessage: async ({ request, locals }) => {
 		requireRole(locals, ['superadmin', 'manager']);
 		const data = await request.formData();

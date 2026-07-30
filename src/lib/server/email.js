@@ -136,7 +136,7 @@ export function staffWelcomeEmail({ full_name, email, password, role, gymName })
 	return { subject, html };
 }
 
-export function memberWelcomeEmail({ full_name, email, password, gymName, planName }) {
+export function memberWelcomeEmail({ full_name, email, password, gymName, planName, registrationCode }) {
 	const subject = 'Welcome to GymLi — your membership account is ready';
 	const html = shell({
 		pillLabel: 'Welcome',
@@ -148,6 +148,7 @@ export function memberWelcomeEmail({ full_name, email, password, gymName, planNa
 				['Full Name', full_name],
 				['Gym', gymName],
 				['Plan', planName],
+				['Registration Code', registrationCode],
 				['Login Email', email],
 			])}
 			${credentialBox(password)}

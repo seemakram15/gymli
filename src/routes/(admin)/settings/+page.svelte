@@ -1,11 +1,21 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Bell, User, RefreshCw, Plus, Pencil, Trash2 } from 'lucide-svelte';
+	import { Bell, User, RefreshCw, Plus, Pencil, Trash2, Camera, Mail, Lock } from 'lucide-svelte';
+	import { initials } from '$lib/utils/format.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
 	let { data, form } = $props();
 	let tab = $state('profile');
+
+	let avatarPreview = $state(data.profile.avatar_url ?? '');
+	function onAvatarChange(e) {
+		const file = e.currentTarget.files?.[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = () => (avatarPreview = reader.result);
+		reader.readAsDataURL(file);
+	}
 
 	const isSuperadmin = $derived(data.profile?.role === 'superadmin');
 	const canManagePlans = $derived(data.profile?.role === 'superadmin' || data.profile?.role === 'manager');
@@ -57,13 +67,50 @@
 		<div class="card card-body">
 			<h3 class="font-semibold text-ink-900 mb-4 flex items-center gap-2"><User size={16} /> Account Information</h3>
 			{#if form?.profileSuccess}<div class="bg-green-50 text-green-700 rounded-lg px-4 py-2 text-sm mb-4">Profile updated!</div>{/if}
-			<form method="POST" action="?/updateProfile" use:enhance class="space-y-4">
+			{#if form?.profileError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{form.profileError}</div>{/if}
+			<form method="POST" action="?/updateProfile" enctype="multipart/form-data" use:enhance class="space-y-4">
+				<div class="flex justify-center">
+					<label class="relative cursor-pointer group">
+						{#if avatarPreview}
+							<img src={avatarPreview} alt="Preview" class="w-24 h-24 rounded-full object-cover ring-4 ring-ink-100" />
+						{:else}
+							<div class="w-24 h-24 rounded-full bg-ink-900 text-volt-300 ring-4 ring-ink-100 flex items-center justify-center font-bold text-2xl">
+								{initials(data.profile.full_name)}
+							</div>
+						{/if}
+						<span class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-ink-900 text-volt-300 flex items-center justify-center ring-2 ring-white group-hover:bg-ink-700 transition-colors">
+							<Camera size={14} />
+						</span>
+						<input name="avatar" type="file" accept="image/*" class="sr-only" onchange={onAvatarChange} />
+					</label>
+				</div>
 				<div class="grid md:grid-cols-2 gap-4">
 					<div><label class="label">Full Name</label><input name="full_name" class="input" placeholder="Full name" value={data.profile.full_name ?? ''} /></div>
 					<div><label class="label">Phone</label><input name="phone_number" type="tel" class="input" placeholder="+92 300 1234567" value={data.profile.phone_number ?? ''} /></div>
 					<div><label class="label">City</label><input name="city" class="input" placeholder="Lahore" value={data.profile.city ?? ''} /></div>
 				</div>
 				<button type="submit" class="btn-primary btn">Save Profile</button>
+			</form>
+		</div>
+
+		<div class="card card-body">
+			<h3 class="font-semibold text-ink-900 mb-4 flex items-center gap-2"><Mail size={16} /> Email Address</h3>
+			{#if form?.emailSuccess}<div class="bg-green-50 text-green-700 rounded-lg px-4 py-2 text-sm mb-4">Check your inbox to confirm the new email address.</div>{/if}
+			{#if form?.emailError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{form.emailError}</div>{/if}
+			<form method="POST" action="?/updateEmail" use:enhance class="flex flex-col sm:flex-row gap-3 sm:items-end">
+				<div class="flex-1"><label class="label">Email</label><input name="email" type="email" class="input" required value={data.email} /></div>
+				<button type="submit" class="btn-primary btn shrink-0">Update Email</button>
+			</form>
+		</div>
+
+		<div class="card card-body">
+			<h3 class="font-semibold text-ink-900 mb-4 flex items-center gap-2"><Lock size={16} /> Password</h3>
+			{#if form?.passwordSuccess}<div class="bg-green-50 text-green-700 rounded-lg px-4 py-2 text-sm mb-4">Password updated!</div>{/if}
+			{#if form?.passwordError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{form.passwordError}</div>{/if}
+			<form method="POST" action="?/updatePassword" use:enhance class="grid md:grid-cols-2 gap-4">
+				<div><label class="label">New Password</label><input name="password" type="password" class="input" required minlength="8" placeholder="At least 8 characters" /></div>
+				<div><label class="label">Confirm Password</label><input name="confirm" type="password" class="input" required minlength="8" placeholder="Re-enter password" /></div>
+				<button type="submit" class="btn-primary btn md:col-span-2 w-fit">Update Password</button>
 			</form>
 		</div>
 	{/if}
