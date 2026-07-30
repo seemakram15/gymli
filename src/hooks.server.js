@@ -17,15 +17,11 @@ export const handle = async ({ event, resolve }) => {
 		} = await supabase.auth.getUser();
 
 		if (user && !userError) {
-			const {
-				data: { session }
-			} = await supabase.auth.getSession();
-			event.locals.session = session;
 			event.locals.user = user;
 
 			const { data: profile } = await supabase
 				.from('profiles')
-				.select('role, full_name, gym_id')
+				.select('id, full_name, role, phone_number, city, avatar_url, gym_id')
 				.eq('id', user.id)
 				.single();
 			event.locals.profile = profile;

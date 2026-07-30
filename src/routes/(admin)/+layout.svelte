@@ -5,44 +5,70 @@
 		LogOut, Menu, X, ChevronDown, UserCog,
 		Bell, ChevronRight
 	} from 'lucide-svelte';
-	import { page } from '$app/stores';
+	import { page, navigating } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { createClient } from '$lib/supabase.js';
 	import { initials } from '$lib/utils/format.js';
 	import Logo from '$lib/components/Logo.svelte';
+	import PageSkeleton from '$lib/components/PageSkeleton.svelte';
 
 	let { children, data } = $props();
 	const supabase = createClient();
 	let sidebarOpen = $state(false);
 	let profileOpen = $state(false);
 
-	const navSections = [
+	/** @type {[RegExp, 'stats' | 'table' | 'cards' | 'form' | 'detail'][]} */
+	const skeletonVariants = [
+		[/^\/(dashboard|reports)/, 'stats'],
+		[/^\/(members|subscriptions|payments|staff|attendance)\/?$/, 'table'],
+		[/^\/(packages|gyms)\/?$/, 'cards'],
+		[/\/(new|settings)/, 'form'],
+		[/^\/members\/[^/]+$/, 'detail'],
+	];
+
+	const navigatingVariant = $derived.by(() => {
+		/** @type {string | undefined} */
+		const path = $navigating?.to?.url?.pathname;
+		if (!path) return null;
+		return skeletonVariants.find(([re]) => re.test(path))?.[1] ?? 'table';
+	});
+
+	const allNavSections = [
 		{
 			title: 'Overview',
 			items: [
-				{ path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-				{ path: '/reports', label: 'Reports', icon: BarChart3 }
+				{ path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'manager', 'instructor', 'staff'] },
+				{ path: '/reports', label: 'Reports', icon: BarChart3, roles: ['superadmin', 'manager'] }
 			]
 		},
 		{
 			title: 'Members',
 			items: [
-				{ path: '/members', label: 'All Members', icon: Users },
-				{ path: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
-				{ path: '/payments', label: 'Payments', icon: CreditCard },
-				{ path: '/attendance', label: 'Attendance', icon: CalendarCheck }
+				{ path: '/members', label: 'All Members', icon: Users, roles: ['superadmin', 'manager', 'instructor', 'staff'] },
+				{ path: '/subscriptions', label: 'Subscriptions', icon: CreditCard, roles: ['superadmin', 'manager'] },
+				{ path: '/payments', label: 'Payments', icon: CreditCard, roles: ['superadmin', 'manager', 'instructor'] },
+				{ path: '/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['superadmin', 'manager', 'instructor', 'staff'] }
 			]
 		},
 		{
 			title: 'Setup',
 			items: [
-				{ path: '/packages', label: 'Plans', icon: Package },
-				{ path: '/staff', label: 'Staff', icon: UserCog },
-				{ path: '/gyms', label: 'Gym Locations', icon: Building2 },
-				{ path: '/settings', label: 'Settings', icon: Settings }
+				{ path: '/packages', label: 'Plans', icon: Package, roles: ['superadmin', 'manager'] },
+				{ path: '/staff', label: 'Staff', icon: UserCog, roles: ['superadmin', 'manager'] },
+				{ path: '/gyms', label: 'Gym Locations', icon: Building2, roles: ['superadmin', 'manager'] },
+				{ path: '/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'manager', 'instructor', 'staff'] }
 			]
 		}
 	];
+
+	const navSections = $derived(
+		allNavSections
+			.map((section) => ({
+				...section,
+				items: section.items.filter((item) => item.roles.includes(data.profile?.role))
+			}))
+			.filter((section) => section.items.length)
+	);
 
 	function isActive(path) {
 		const cur = $page.url.pathname;
@@ -166,7 +192,11 @@
 		</header>
 
 		<main class="flex-1 overflow-y-auto">
-			{@render children()}
+			{#if navigatingVariant}
+				<PageSkeleton variant={navigatingVariant} />
+			{:else}
+				{@render children()}
+			{/if}
 		</main>
 	</div>
 </div>

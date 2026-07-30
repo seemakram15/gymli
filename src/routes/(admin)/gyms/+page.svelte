@@ -1,15 +1,22 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Building2, Plus, Trash2, MapPin, Phone } from 'lucide-svelte';
+	import { Building2, Plus, Trash2, Pencil, MapPin, Phone } from 'lucide-svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
 	let { data, form } = $props();
 	let modalOpen = $state(false);
+	let editingGym = $state(null);
 	let loading = $state(false);
 	let confirmOpen = $state(false);
 	let pendingDeleteId = $state('');
 	let pendingDeleteName = $state('');
+
+	const isSuperadmin = $derived(data.profile?.role === 'superadmin');
+
+	function canEdit(gym) {
+		return isSuperadmin || gym.id === data.profile?.gym_id;
+	}
 
 	function askDelete(gym) {
 		pendingDeleteId = gym.id;
@@ -22,6 +29,10 @@
 		if (formEl instanceof HTMLFormElement) formEl.requestSubmit();
 		confirmOpen = false;
 	}
+
+	function openEdit(gym) {
+		editingGym = gym;
+	}
 </script>
 
 <svelte:head><title>Gym Locations — GymLi</title></svelte:head>
@@ -32,7 +43,9 @@
 			<h1 class="page-title">Gym Locations</h1>
 			<p class="text-ink-500 text-sm mt-1">{data.gyms.filter((g) => g.status === 'active').length} active locations</p>
 		</div>
-		<button onclick={() => (modalOpen = true)} class="btn btn-primary"><Plus size={16} /> Add Gym</button>
+		{#if isSuperadmin}
+			<button onclick={() => (modalOpen = true)} class="btn btn-primary"><Plus size={16} /> Add Gym</button>
+		{/if}
 	</div>
 
 	{#if form?.error}
@@ -41,29 +54,54 @@
 
 	<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
 		{#each data.gyms.filter((g) => g.status === 'active') as gym}
-			<div class="card p-5 sm:p-6 overflow-hidden relative">
-				<div class="absolute inset-x-0 top-0 h-24 opacity-40 pointer-events-none" style="background: linear-gradient(135deg, #1a1a17, #3d3d38);"></div>
-				<div class="relative flex items-start justify-between mb-4">
-					<div class="w-12 h-12 bg-volt-400 text-ink-950 rounded-xl flex items-center justify-center">
-						<Building2 size={22} />
+			<div class="card p-5 sm:p-6 flex flex-col hover:shadow-sm hover:border-ink-200 transition-all">
+				<div class="flex items-start justify-between mb-4">
+					<div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style="background: linear-gradient(135deg, var(--color-volt-400), var(--color-volt-500));">
+						<Building2 size={22} class="text-ink-950" />
 					</div>
-					<button
-						type="button"
-						onclick={() => askDelete(gym)}
-						class="p-2 rounded-lg text-ink-300 hover:text-red-500 hover:bg-red-50 transition-colors bg-white/80"
-						aria-label="Remove gym"
-					>
-						<Trash2 size={16} />
-					</button>
+					<span class="badge-green">Active</span>
 				</div>
-				<h3 class="relative font-display font-bold text-ink-900 text-lg mb-1">{gym.name}</h3>
-				<div class="relative space-y-1 text-sm text-ink-500">
-					<div class="flex items-center gap-2"><MapPin size={13} />{gym.city}{gym.address ? ` — ${gym.address}` : ''}</div>
-					{#if gym.phone}<div class="flex items-center gap-2"><Phone size={13} />{gym.phone}</div>{/if}
-					{#if gym.email}<div class="text-xs text-ink-600 font-medium">{gym.email}</div>{/if}
+
+				<h3 class="font-display font-bold text-ink-900 text-lg mb-2 truncate">{gym.name}</h3>
+
+				<div class="space-y-1.5 text-sm text-ink-500 flex-1">
+					<div class="flex items-center gap-2 min-w-0">
+						<MapPin size={13} class="shrink-0 text-ink-300" />
+						<span class="truncate">{gym.city}{gym.address ? ` — ${gym.address}` : ''}</span>
+					</div>
+					{#if gym.phone}
+						<div class="flex items-center gap-2"><Phone size={13} class="shrink-0 text-ink-300" />{gym.phone}</div>
+					{/if}
+					{#if gym.email}
+						<div class="text-xs text-ink-400 truncate">{gym.email}</div>
+					{/if}
 				</div>
+
 				{#if gym.description}
-					<p class="relative text-xs text-ink-400 mt-3 border-t border-ink-100 pt-3">{gym.description}</p>
+					<p class="text-xs text-ink-400 mt-3 pt-3 border-t border-ink-100 line-clamp-2">{gym.description}</p>
+				{/if}
+
+				{#if canEdit(gym) || isSuperadmin}
+					<div class="flex justify-end gap-4 mt-4 pt-3 border-t border-ink-100">
+						{#if canEdit(gym)}
+							<button
+								type="button"
+								onclick={() => openEdit(gym)}
+								class="flex items-center gap-1.5 text-xs font-medium text-ink-400 hover:text-ink-800 transition-colors"
+							>
+								<Pencil size={13} /> Edit
+							</button>
+						{/if}
+						{#if isSuperadmin}
+							<button
+								type="button"
+								onclick={() => askDelete(gym)}
+								class="flex items-center gap-1.5 text-xs font-medium text-ink-400 hover:text-red-600 transition-colors"
+							>
+								<Trash2 size={13} /> Remove
+							</button>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		{/each}
@@ -88,31 +126,65 @@
 	onconfirm={submitDelete}
 />
 
-<Modal open={modalOpen} title="Add Gym Location" onclose={() => (modalOpen = false)}>
-	<form
-		method="POST"
-		action="?/create"
-		use:enhance={() => {
-			loading = true;
-			return async ({ update }) => {
-				await update();
-				loading = false;
-				modalOpen = false;
-			};
-		}}
-		class="space-y-3"
-	>
-		<div><label class="label">Gym Name *</label><input name="name" class="input" required placeholder="Power Zone Gym" /></div>
-		<div><label class="label">City *</label><input name="city" class="input" required placeholder="Lahore" /></div>
-		<div><label class="label">Address</label><input name="address" class="input" placeholder="Street, Area" /></div>
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-			<div><label class="label">Phone</label><input name="phone" type="tel" class="input" placeholder="+92 300…" /></div>
-			<div><label class="label">Email</label><input name="email" type="email" class="input" placeholder="gym@email.com" /></div>
-		</div>
-		<div><label class="label">Description</label><textarea name="description" class="input" rows="2"></textarea></div>
-		<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
-			<button type="button" onclick={() => (modalOpen = false)} class="btn btn-secondary flex-1">Cancel</button>
-			<button type="submit" class="btn btn-primary flex-1" disabled={loading}>{loading ? 'Saving…' : 'Add Gym'}</button>
-		</div>
-	</form>
+{#if isSuperadmin}
+	<Modal open={modalOpen} title="Add Gym Location" onclose={() => (modalOpen = false)}>
+		<form
+			method="POST"
+			action="?/create"
+			use:enhance={() => {
+				loading = true;
+				return async ({ update }) => {
+					await update();
+					loading = false;
+					modalOpen = false;
+				};
+			}}
+			class="space-y-3"
+		>
+			<div><label class="label">Gym Name *</label><input name="name" class="input" required placeholder="Power Zone Gym" /></div>
+			<div><label class="label">City *</label><input name="city" class="input" required placeholder="Lahore" /></div>
+			<div><label class="label">Address</label><input name="address" class="input" placeholder="Street, Area" /></div>
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<div><label class="label">Phone</label><input name="phone" type="tel" class="input" placeholder="+92 300…" /></div>
+				<div><label class="label">Email</label><input name="email" type="email" class="input" placeholder="gym@email.com" /></div>
+			</div>
+			<div><label class="label">Description</label><textarea name="description" class="input" rows="2" placeholder="Short description of this location"></textarea></div>
+			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
+				<button type="button" onclick={() => (modalOpen = false)} class="btn btn-secondary flex-1">Cancel</button>
+				<button type="submit" class="btn btn-primary flex-1" disabled={loading}>{loading ? 'Saving…' : 'Add Gym'}</button>
+			</div>
+		</form>
+	</Modal>
+{/if}
+
+<Modal open={!!editingGym} title="Edit Gym Location" onclose={() => (editingGym = null)}>
+	{#if editingGym}
+		<form
+			method="POST"
+			action="?/update"
+			use:enhance={() => {
+				loading = true;
+				return async ({ update }) => {
+					await update();
+					loading = false;
+					editingGym = null;
+				};
+			}}
+			class="space-y-3"
+		>
+			<input type="hidden" name="id" value={editingGym.id} />
+			<div><label class="label">Gym Name *</label><input name="name" class="input" required value={editingGym.name ?? ''} placeholder="Power Zone Gym" /></div>
+			<div><label class="label">City *</label><input name="city" class="input" required value={editingGym.city ?? ''} placeholder="Lahore" /></div>
+			<div><label class="label">Address</label><input name="address" class="input" value={editingGym.address ?? ''} placeholder="Street, Area" /></div>
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<div><label class="label">Phone</label><input name="phone" type="tel" class="input" value={editingGym.phone ?? ''} placeholder="+92 300…" /></div>
+				<div><label class="label">Email</label><input name="email" type="email" class="input" value={editingGym.email ?? ''} placeholder="gym@email.com" /></div>
+			</div>
+			<div><label class="label">Description</label><textarea name="description" class="input" rows="2" placeholder="Short description of this location">{editingGym.description ?? ''}</textarea></div>
+			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
+				<button type="button" onclick={() => (editingGym = null)} class="btn btn-secondary flex-1">Cancel</button>
+				<button type="submit" class="btn btn-primary flex-1" disabled={loading}>{loading ? 'Saving…' : 'Save Changes'}</button>
+			</div>
+		</form>
+	{/if}
 </Modal>

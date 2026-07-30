@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { createSupabaseAdminClient } from '$lib/server/supabase.js';
 import { formatPKR, formatDate } from '$lib/utils/format.js';
+import { sendEmail } from '$lib/server/email.js';
 
 const DEFAULT_SETTINGS = {
 	due_soon_days: 3,
@@ -25,32 +26,6 @@ function addDays(iso, days) {
 
 function daysBetween(a, b) {
 	return Math.round((new Date(b) - new Date(a)) / 86400000);
-}
-
-async function sendEmail(to, subject, html) {
-	if (!env.BRAVO_API_KEY || !env.BRAVO_EMAIL) {
-		console.warn('[reminders] BRAVO_API_KEY/BRAVO_EMAIL not set — skipping send to', to);
-		return false;
-	}
-	const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-		method: 'POST',
-		headers: {
-			'api-key': env.BRAVO_API_KEY,
-			'content-type': 'application/json',
-			accept: 'application/json',
-		},
-		body: JSON.stringify({
-			sender: { name: 'GymLi', email: env.BRAVO_EMAIL },
-			to: [{ email: to }],
-			subject,
-			htmlContent: html,
-		}),
-	});
-	if (!res.ok) {
-		console.error('[reminders] send failed', res.status, await res.text().catch(() => ''));
-		return false;
-	}
-	return true;
 }
 
 function emailShell(title, bodyHtml) {

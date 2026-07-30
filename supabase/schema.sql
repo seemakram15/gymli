@@ -22,7 +22,7 @@ create table if not exists public.profiles (
   medical_notes text,
   avatar_url text,
   role text not null default 'member'
-    check (role in ('owner', 'manager', 'instructor', 'staff', 'member')),
+    check (role in ('superadmin', 'manager', 'instructor', 'staff', 'member')),
   status text not null default 'active'
     check (status in ('active', 'inactive', 'suspended', 'frozen')),
   gym_id uuid,               -- FK added after gyms table
@@ -79,6 +79,7 @@ create table if not exists public.cycles (
   id uuid primary key default gen_random_uuid(),
   name text not null,          -- Monthly, Quarterly, Annual, etc.
   interval_days integer not null default 30,
+  status text not null default 'active' check (status in ('active', 'inactive')),
   created_at timestamptz default now()
 );
 
@@ -252,7 +253,7 @@ stable
 as $$
   select exists (
     select 1 from public.profiles p
-    where p.id = auth.uid() and p.role in ('owner', 'manager')
+    where p.id = auth.uid() and p.role in ('superadmin', 'manager')
   );
 $$;
 
@@ -265,7 +266,7 @@ stable
 as $$
   select exists (
     select 1 from public.profiles p
-    where p.id = auth.uid() and p.role in ('owner', 'manager', 'instructor')
+    where p.id = auth.uid() and p.role in ('superadmin', 'manager', 'instructor')
   );
 $$;
 
@@ -274,65 +275,143 @@ revoke all on function public.current_role_is_admin_or_instructor() from public;
 grant execute on function public.current_role_is_admin() to authenticated, anon, service_role;
 grant execute on function public.current_role_is_admin_or_instructor() to authenticated, anon, service_role;
 
--- Profiles: users can read their own; owners/managers can read all
+-- Gym-scoping helpers: RBAC is superadmin (sees everything) > manager
+-- (CRUD scoped to their own gym_id) > instructor/staff (view own gym,
+-- instructor can also record payments) > member (own records only).
+create or replace function public.current_user_role()
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select role from public.profiles where id = auth.uid();
+$$;
+
+create or replace function public.current_user_gym_id()
+returns uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select gym_id from public.profiles where id = auth.uid();
+$$;
+
+create or replace function public.is_superadmin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role = 'superadmin'
+  );
+$$;
+
+create or replace function public.can_access_gym(target_gym_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select public.is_superadmin()
+    or (target_gym_id is not null and target_gym_id = public.current_user_gym_id());
+$$;
+
+revoke all on function public.current_user_role() from public;
+revoke all on function public.current_user_gym_id() from public;
+revoke all on function public.is_superadmin() from public;
+revoke all on function public.can_access_gym(uuid) from public;
+grant execute on function public.current_user_role() to authenticated, anon, service_role;
+grant execute on function public.current_user_gym_id() to authenticated, anon, service_role;
+grant execute on function public.is_superadmin() to authenticated, anon, service_role;
+grant execute on function public.can_access_gym(uuid) to authenticated, anon, service_role;
+
+-- Profiles: users can read/update their own row; superadmin sees/edits all;
+-- managers CRUD member/instructor/staff rows in their own gym; instructors
+-- and staff can view (not edit) their own gym's roster.
 create policy "Users can view own profile" on public.profiles
   for select using (auth.uid() = id);
-
-create policy "Admins can view all profiles" on public.profiles
-  for select using (public.current_role_is_admin());
 
 create policy "Users can update own profile" on public.profiles
   for update using (auth.uid() = id);
 
-create policy "Admins can update all profiles" on public.profiles
-  for update using (public.current_role_is_admin());
+create policy "Superadmin full access to profiles" on public.profiles
+  for all using (public.is_superadmin());
 
-create policy "Admins can insert profiles" on public.profiles
-  for insert with check (public.current_role_is_admin());
+create policy "Managers manage own-gym staff-tier profiles" on public.profiles
+  for all using (
+    public.current_user_role() = 'manager'
+    and gym_id = public.current_user_gym_id()
+    and role in ('member', 'instructor', 'staff')
+  ) with check (
+    public.current_user_role() = 'manager'
+    and gym_id = public.current_user_gym_id()
+    and role in ('member', 'instructor', 'staff')
+  );
 
--- Gyms: owners can manage their own gyms; everyone can view active gyms
+create policy "Instructors and staff view own-gym profiles" on public.profiles
+  for select using (
+    public.current_user_role() in ('instructor', 'staff')
+    and gym_id = public.current_user_gym_id()
+  );
+
+-- Gyms: superadmin manages all; managers can update only their own gym;
+-- everyone can view active gyms (for dropdowns).
 create policy "Anyone can view active gyms" on public.gyms
   for select using (status = 'active' or owner_id = auth.uid());
 
-create policy "Owners can manage their gyms" on public.gyms
-  for all using (owner_id = auth.uid());
+create policy "Superadmin manage all gyms" on public.gyms
+  for all using (public.is_superadmin() or owner_id = auth.uid());
 
--- Subscriptions: admins full access; members view own
-create policy "Admins full access to subscriptions" on public.subscriptions
-  for all using (public.current_role_is_admin());
+create policy "Managers update own gym" on public.gyms
+  for update using (public.current_user_role() = 'manager' and id = public.current_user_gym_id())
+  with check (public.current_user_role() = 'manager' and id = public.current_user_gym_id());
+
+-- Subscriptions: gym-scoped (superadmin sees all); members view own
+create policy "Gym-scoped manage subscriptions" on public.subscriptions
+  for all using (public.can_access_gym(gym_id)) with check (public.can_access_gym(gym_id));
 
 create policy "Members view own subscriptions" on public.subscriptions
   for select using (user_id = auth.uid());
 
--- Payments: admins full access; members view own
-create policy "Admins full access to payments" on public.payments
-  for all using (public.current_role_is_admin());
+-- Payments: gym-scoped (superadmin sees all); members view own
+create policy "Gym-scoped manage payments" on public.payments
+  for all using (public.can_access_gym(gym_id)) with check (public.can_access_gym(gym_id));
 
 create policy "Members view own payments" on public.payments
   for select using (user_id = auth.uid());
 
--- Packages, cycles, services: read-only for members; full for admins
+-- Packages, cycles, services: read-only for everyone; mutation superadmin-only
+-- (global config, not gym-scoped).
 create policy "Anyone can view packages" on public.packages for select using (status = 'active');
-create policy "Admins manage packages" on public.packages for all using (public.current_role_is_admin());
+create policy "Superadmin and managers manage packages" on public.packages
+  for all using (public.is_superadmin() or public.current_user_role() = 'manager');
 
 create policy "Anyone can view cycles" on public.cycles for select using (true);
-create policy "Admins manage cycles" on public.cycles for all using (public.current_role_is_admin());
+create policy "Superadmin and managers manage cycles" on public.cycles
+  for all using (public.is_superadmin() or public.current_user_role() = 'manager');
 
 create policy "Anyone can view services" on public.services for select using (status = 'active');
-create policy "Admins manage services" on public.services for all using (public.current_role_is_admin());
+create policy "Superadmin and managers manage services" on public.services
+  for all using (public.is_superadmin() or public.current_user_role() = 'manager');
 
 create policy "Anyone can view package_services" on public.package_services for select using (true);
-create policy "Admins manage package_services" on public.package_services for all using (public.current_role_is_admin());
+create policy "Superadmin and managers manage package_services" on public.package_services
+  for all using (public.is_superadmin() or public.current_user_role() = 'manager');
 
--- Attendance: members see own; admins see all
-create policy "Admins view all attendance" on public.attendance
-  for all using (public.current_role_is_admin_or_instructor());
+-- Attendance: gym-scoped (superadmin sees all); members view own
+create policy "Gym-scoped manage attendance" on public.attendance
+  for all using (public.can_access_gym(gym_id)) with check (public.can_access_gym(gym_id));
 create policy "Members view own attendance" on public.attendance
   for select using (user_id = auth.uid());
 
--- Reminder settings: admins only
-create policy "Admins manage reminder settings" on public.reminder_settings
-  for all using (public.current_role_is_admin());
+-- Reminder settings: superadmin only (global config)
+create policy "Superadmin manage reminder settings" on public.reminder_settings
+  for all using (public.is_superadmin());
 
 -- ─────────────────────────────────────────────────────────────────
 -- REMINDER LOG (dedup so the daily cron doesn't re-send same-day)
@@ -348,8 +427,8 @@ create table if not exists public.reminder_log (
 
 alter table public.reminder_log enable row level security;
 
-create policy "Admins manage reminder log" on public.reminder_log
-  for all using (public.current_role_is_admin());
+create policy "Superadmin manage reminder log" on public.reminder_log
+  for all using (public.is_superadmin());
 
 -- Lets the reminders cron (service role) resolve a member's login email —
 -- profiles has no email column; it lives on auth.users.

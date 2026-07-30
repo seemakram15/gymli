@@ -1,20 +1,18 @@
 import { fail } from '@sveltejs/kit';
+import { requireRole } from '$lib/server/rbac.js';
 
 export const load = async ({ locals }) => {
-	const { data: profile } = await locals.supabase
-		.from('profiles')
-		.select('*')
-		.eq('id', locals.user.id)
-		.single();
-
-	const { data: reminderSettings } = await locals.supabase
-		.from('reminder_settings')
-		.select('*')
-		.limit(1)
-		.single();
-
-	const { data: cycles } = await locals.supabase.from('cycles').select('*').order('name');
-	const { data: services } = await locals.supabase.from('services').select('*').order('name');
+	const [
+		{ data: profile },
+		{ data: reminderSettings },
+		{ data: cycles },
+		{ data: services },
+	] = await Promise.all([
+		locals.supabase.from('profiles').select('*').eq('id', locals.user.id).single(),
+		locals.supabase.from('reminder_settings').select('*').limit(1).single(),
+		locals.supabase.from('cycles').select('*').eq('status', 'active').order('name'),
+		locals.supabase.from('services').select('*').eq('status', 'active').order('name'),
+	]);
 
 	return {
 		profile: profile ?? {},
@@ -45,6 +43,7 @@ export const actions = {
 	},
 
 	updateReminders: async ({ request, locals }) => {
+		requireRole(locals, ['superadmin']);
 		const data = await request.formData();
 		const settings = {
 			due_soon_days: Number(data.get('due_soon_days')),
@@ -76,6 +75,7 @@ export const actions = {
 	},
 
 	addCycle: async ({ request, locals }) => {
+		requireRole(locals, ['superadmin', 'manager']);
 		const data = await request.formData();
 		const { error } = await locals.supabase.from('cycles').insert({
 			name: data.get('name'),
@@ -85,13 +85,52 @@ export const actions = {
 		return { cycleSuccess: true };
 	},
 
+	updateCycle: async ({ request, locals }) => {
+		requireRole(locals, ['superadmin', 'manager']);
+		const data = await request.formData();
+		const { error } = await locals.supabase
+			.from('cycles')
+			.update({ name: data.get('name'), interval_days: Number(data.get('interval_days')) })
+			.eq('id', data.get('id'));
+		if (error) return fail(400, { cycleError: error.message });
+		return { cycleSuccess: true };
+	},
+
+	deleteCycle: async ({ request, locals }) => {
+		requireRole(locals, ['superadmin', 'manager']);
+		const data = await request.formData();
+		const { error } = await locals.supabase.from('cycles').update({ status: 'inactive' }).eq('id', data.get('id'));
+		if (error) return fail(400, { cycleError: error.message });
+		return { cycleSuccess: true };
+	},
+
 	addService: async ({ request, locals }) => {
+		requireRole(locals, ['superadmin', 'manager']);
 		const data = await request.formData();
 		const { error } = await locals.supabase.from('services').insert({
 			name: data.get('name'),
 			description: data.get('description'),
 			status: 'active',
 		});
+		if (error) return fail(400, { serviceError: error.message });
+		return { serviceSuccess: true };
+	},
+
+	updateService: async ({ request, locals }) => {
+		requireRole(locals, ['superadmin', 'manager']);
+		const data = await request.formData();
+		const { error } = await locals.supabase
+			.from('services')
+			.update({ name: data.get('name'), description: data.get('description') })
+			.eq('id', data.get('id'));
+		if (error) return fail(400, { serviceError: error.message });
+		return { serviceSuccess: true };
+	},
+
+	deleteService: async ({ request, locals }) => {
+		requireRole(locals, ['superadmin', 'manager']);
+		const data = await request.formData();
+		const { error } = await locals.supabase.from('services').update({ status: 'inactive' }).eq('id', data.get('id'));
 		if (error) return fail(400, { serviceError: error.message });
 		return { serviceSuccess: true };
 	},

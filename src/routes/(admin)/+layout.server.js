@@ -12,20 +12,14 @@ export const load = async ({ locals }) => {
 		redirect(303, '/login');
 	}
 
-	const { data: profile } = await locals.supabase
-		.from('profiles')
-		.select('id, full_name, role, phone_number, city, avatar_url, gym_id')
-		.eq('id', locals.user.id)
-		.single();
-
-	const { data: gyms } = await locals.supabase
-		.from('gyms')
-		.select('id, name, city, status, logo')
-		.order('name');
+	const gymId = locals.profile?.role === 'superadmin' ? null : locals.profile?.gym_id;
+	let gymsQuery = locals.supabase.from('gyms').select('id, name, city, status, logo').order('name');
+	if (gymId) gymsQuery = gymsQuery.eq('id', gymId);
+	const { data: gyms } = await gymsQuery;
 
 	return {
 		user: locals.user,
-		profile: profile ?? {},
+		profile: locals.profile ?? {},
 		gyms: gyms ?? []
 	};
 };

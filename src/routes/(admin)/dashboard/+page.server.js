@@ -1,4 +1,8 @@
+import { requireRole, scopeGymId, applyGymScope } from '$lib/server/rbac.js';
+
 export const load = async ({ locals }) => {
+	requireRole(locals, ['superadmin', 'manager', 'instructor', 'staff']);
+	const gymId = scopeGymId(locals);
 	const supabase = locals.supabase;
 	const today = new Date().toISOString().split('T')[0];
 	const weekStart = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
@@ -14,32 +18,36 @@ export const load = async ({ locals }) => {
 		{ data: recentPayments },
 		{ data: recentMembers },
 	] = await Promise.all([
-		supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'member'),
-		supabase.from('subscriptions').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-		supabase.from('subscriptions').select('*', { count: 'exact', head: true }).eq('payment_status', 'overdue'),
-		supabase.from('payments').select('amount, paid_at').eq('status', 'completed'),
-		supabase.from('subscriptions')
-			.select('id, due_date, amount_due, amount_paid, profiles(full_name, phone_number)')
-			.eq('payment_status', 'overdue')
-			.order('due_date')
-			.limit(5),
-		supabase.from('subscriptions')
-			.select('id, due_date, amount_due, profiles(full_name, phone_number)')
-			.eq('payment_status', 'pending')
-			.gte('due_date', today)
-			.lte('due_date', new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0])
-			.order('due_date')
-			.limit(5),
-		supabase.from('payments')
-			.select('id, amount, method, paid_at, profiles(full_name)')
-			.eq('status', 'completed')
-			.order('paid_at', { ascending: false })
-			.limit(5),
-		supabase.from('profiles')
-			.select('id, full_name, created_at, role')
-			.eq('role', 'member')
-			.order('created_at', { ascending: false })
-			.limit(5),
+		applyGymScope(supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'member'), gymId),
+		applyGymScope(supabase.from('subscriptions').select('*', { count: 'exact', head: true }).eq('status', 'active'), gymId),
+		applyGymScope(supabase.from('subscriptions').select('*', { count: 'exact', head: true }).eq('payment_status', 'overdue'), gymId),
+		applyGymScope(supabase.from('payments').select('amount, paid_at').eq('status', 'completed'), gymId),
+		applyGymScope(
+			supabase.from('subscriptions')
+				.select('id, due_date, amount_due, amount_paid, profiles(full_name, phone_number)')
+				.eq('payment_status', 'overdue'),
+			gymId
+		).order('due_date').limit(5),
+		applyGymScope(
+			supabase.from('subscriptions')
+				.select('id, due_date, amount_due, profiles(full_name, phone_number)')
+				.eq('payment_status', 'pending')
+				.gte('due_date', today)
+				.lte('due_date', new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0]),
+			gymId
+		).order('due_date').limit(5),
+		applyGymScope(
+			supabase.from('payments')
+				.select('id, amount, method, paid_at, profiles(full_name)')
+				.eq('status', 'completed'),
+			gymId
+		).order('paid_at', { ascending: false }).limit(5),
+		applyGymScope(
+			supabase.from('profiles')
+				.select('id, full_name, created_at, role')
+				.eq('role', 'member'),
+			gymId
+		).order('created_at', { ascending: false }).limit(5),
 	]);
 
 	const payments = collectionData ?? [];

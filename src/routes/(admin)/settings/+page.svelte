@@ -1,9 +1,41 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Bell, User, RefreshCw, Plus } from 'lucide-svelte';
+	import { Bell, User, RefreshCw, Plus, Pencil, Trash2 } from 'lucide-svelte';
+	import Modal from '$lib/components/Modal.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
 	let { data, form } = $props();
 	let tab = $state('profile');
+
+	const isSuperadmin = $derived(data.profile?.role === 'superadmin');
+	const canManagePlans = $derived(data.profile?.role === 'superadmin' || data.profile?.role === 'manager');
+
+	const allTabs = [
+		['profile', 'Account', true],
+		['reminders', 'Reminders', isSuperadmin],
+		['cycles', 'Billing Cycles', canManagePlans],
+		['services', 'Services', canManagePlans],
+	];
+	const tabs = $derived(allTabs.filter(([, , visible]) => visible));
+
+	let editingCycle = $state(null);
+	let editingService = $state(null);
+	let confirmOpen = $state(false);
+	let pendingDelete = $state(null); // { kind: 'cycle' | 'service', id, name }
+
+	function askDeleteCycle(c) {
+		pendingDelete = { kind: 'cycle', id: c.id, name: c.name };
+		confirmOpen = true;
+	}
+	function askDeleteService(s) {
+		pendingDelete = { kind: 'service', id: s.id, name: s.name };
+		confirmOpen = true;
+	}
+	function submitDelete() {
+		const formEl = document.getElementById('delete-billing-item-form');
+		if (formEl instanceof HTMLFormElement) formEl.requestSubmit();
+		confirmOpen = false;
+	}
 </script>
 
 <svelte:head><title>Settings — GymLi</title></svelte:head>
@@ -12,7 +44,7 @@
 	<h1 class="page-title">Settings</h1>
 
 	<div class="flex gap-1 border-b border-ink-200 overflow-x-auto">
-		{#each [['profile','Account'],['reminders','Reminders'],['cycles','Billing Cycles'],['services','Services']] as [id, label]}
+		{#each tabs as [id, label]}
 			<button onclick={() => tab = id} class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
 				{tab === id ? 'border-ink-900 text-ink-900' : 'border-transparent text-ink-500 hover:text-ink-800'}">
 				{label}
@@ -23,13 +55,13 @@
 	<!-- Profile -->
 	{#if tab === 'profile'}
 		<div class="card card-body">
-			<h3 class="font-semibold text-gray-900 mb-4 flex items-center gap-2"><User size={16} /> Account Information</h3>
+			<h3 class="font-semibold text-ink-900 mb-4 flex items-center gap-2"><User size={16} /> Account Information</h3>
 			{#if form?.profileSuccess}<div class="bg-green-50 text-green-700 rounded-lg px-4 py-2 text-sm mb-4">Profile updated!</div>{/if}
 			<form method="POST" action="?/updateProfile" use:enhance class="space-y-4">
 				<div class="grid md:grid-cols-2 gap-4">
-					<div><label class="label">Full Name</label><input name="full_name" class="input" value={data.profile.full_name ?? ''} /></div>
-					<div><label class="label">Phone</label><input name="phone_number" type="tel" class="input" value={data.profile.phone_number ?? ''} /></div>
-					<div><label class="label">City</label><input name="city" class="input" value={data.profile.city ?? ''} /></div>
+					<div><label class="label">Full Name</label><input name="full_name" class="input" placeholder="Full name" value={data.profile.full_name ?? ''} /></div>
+					<div><label class="label">Phone</label><input name="phone_number" type="tel" class="input" placeholder="+92 300 1234567" value={data.profile.phone_number ?? ''} /></div>
+					<div><label class="label">City</label><input name="city" class="input" placeholder="Lahore" value={data.profile.city ?? ''} /></div>
 				</div>
 				<button type="submit" class="btn-primary btn">Save Profile</button>
 			</form>
@@ -37,9 +69,9 @@
 	{/if}
 
 	<!-- Reminders -->
-	{#if tab === 'reminders'}
+	{#if tab === 'reminders' && isSuperadmin}
 		<div class="card card-body">
-			<h3 class="font-semibold text-gray-900 mb-4 flex items-center gap-2"><Bell size={16} /> Automated Reminder Settings</h3>
+			<h3 class="font-semibold text-ink-900 mb-4 flex items-center gap-2"><Bell size={16} /> Automated Reminder Settings</h3>
 			{#if form?.reminderSuccess}<div class="bg-green-50 text-green-700 rounded-lg px-4 py-2 text-sm mb-4">Settings saved!</div>{/if}
 			<form method="POST" action="?/updateReminders" use:enhance class="space-y-5">
 				<div class="bg-blue-50 rounded-lg p-4 space-y-3">
@@ -71,7 +103,7 @@
 					<div>
 						<label class="label">Send reminders at days overdue (comma-separated):</label>
 						<input name="overdue_intervals" class="input font-mono" value={data.reminderSettings.overdue_intervals} placeholder="3,7,14" />
-						<p class="text-xs text-gray-400 mt-1">Example: 3,7,14 sends reminders 3, 7, and 14 days after due date</p>
+						<p class="text-xs text-ink-400 mt-1">Example: 3,7,14 sends reminders 3, 7, and 14 days after due date</p>
 					</div>
 					<label class="flex items-center gap-2 text-sm cursor-pointer">
 						<input type="checkbox" name="overdue_email" class="rounded text-brand-600" checked={data.reminderSettings.overdue_email} />
@@ -97,17 +129,26 @@
 	{/if}
 
 	<!-- Billing Cycles -->
-	{#if tab === 'cycles'}
+	{#if tab === 'cycles' && canManagePlans}
 		<div class="card card-body space-y-4">
-			<h3 class="font-semibold text-gray-900 mb-2 flex items-center gap-2"><RefreshCw size={16} /> Billing Cycles</h3>
+			<h3 class="font-semibold text-ink-900 mb-2 flex items-center gap-2"><RefreshCw size={16} /> Billing Cycles</h3>
 			<div class="table-wrapper">
 				<table>
-					<thead><tr><th>Cycle Name</th><th>Duration (Days)</th></tr></thead>
+					<thead><tr><th>Cycle Name</th><th>Duration (Days)</th><th></th></tr></thead>
 					<tbody>
 						{#each data.cycles as c}
-							<tr><td class="font-medium">{c.name}</td><td>{c.interval_days} days</td></tr>
+							<tr>
+								<td class="font-medium">{c.name}</td>
+								<td>{c.interval_days} days</td>
+								<td>
+									<div class="flex items-center gap-3 justify-end">
+										<button type="button" onclick={() => (editingCycle = c)} class="text-ink-400 hover:text-ink-800 transition-colors" aria-label="Edit cycle"><Pencil size={14} /></button>
+										<button type="button" onclick={() => askDeleteCycle(c)} class="text-ink-400 hover:text-red-600 transition-colors" aria-label="Remove cycle"><Trash2 size={14} /></button>
+									</div>
+								</td>
+							</tr>
 						{:else}
-							<tr><td colspan="2" class="text-center text-gray-400 py-6">No billing cycles yet</td></tr>
+							<tr><td colspan="3" class="text-center text-ink-400 py-6">No billing cycles yet</td></tr>
 						{/each}
 					</tbody>
 				</table>
@@ -121,20 +162,22 @@
 	{/if}
 
 	<!-- Services -->
-	{#if tab === 'services'}
+	{#if tab === 'services' && canManagePlans}
 		<div class="card card-body space-y-4">
-			<h3 class="font-semibold text-gray-900 mb-2">Gym Services</h3>
+			<h3 class="font-semibold text-ink-900 mb-2">Gym Services</h3>
 			<div class="grid md:grid-cols-2 gap-3">
 				{#each data.services as s}
-					<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-						<div class="w-2 h-2 rounded-full bg-green-500"></div>
-						<div>
-							<div class="text-sm font-medium text-gray-900">{s.name}</div>
-							{#if s.description}<div class="text-xs text-gray-400">{s.description}</div>{/if}
+					<div class="flex items-center gap-3 p-3 bg-ink-50 rounded-lg">
+						<div class="w-2 h-2 rounded-full bg-green-500 shrink-0"></div>
+						<div class="flex-1 min-w-0">
+							<div class="text-sm font-medium text-ink-900 truncate">{s.name}</div>
+							{#if s.description}<div class="text-xs text-ink-400 truncate">{s.description}</div>{/if}
 						</div>
+						<button type="button" onclick={() => (editingService = s)} class="text-ink-400 hover:text-ink-800 transition-colors shrink-0" aria-label="Edit service"><Pencil size={14} /></button>
+						<button type="button" onclick={() => askDeleteService(s)} class="text-ink-400 hover:text-red-600 transition-colors shrink-0" aria-label="Remove service"><Trash2 size={14} /></button>
 					</div>
 				{:else}
-					<div class="md:col-span-2 text-center text-gray-400 py-6">No services yet</div>
+					<div class="md:col-span-2 text-center text-ink-400 py-6">No services yet</div>
 				{/each}
 			</div>
 			<form method="POST" action="?/addService" use:enhance class="flex gap-3">
@@ -145,3 +188,44 @@
 		</div>
 	{/if}
 </div>
+
+<form id="delete-billing-item-form" method="POST" action={pendingDelete?.kind === 'cycle' ? '?/deleteCycle' : '?/deleteService'} use:enhance class="hidden">
+	<input type="hidden" name="id" value={pendingDelete?.id ?? ''} />
+</form>
+
+<ConfirmDialog
+	open={confirmOpen}
+	title={`Remove this ${pendingDelete?.kind ?? 'item'}?`}
+	message={`"${pendingDelete?.name}" will be marked inactive. Existing plans that reference it are unaffected.`}
+	confirmLabel="Remove"
+	oncancel={() => (confirmOpen = false)}
+	onconfirm={submitDelete}
+/>
+
+<Modal open={!!editingCycle} title="Edit Billing Cycle" onclose={() => (editingCycle = null)}>
+	{#if editingCycle}
+		<form method="POST" action="?/updateCycle" use:enhance={() => async ({ update }) => { await update(); editingCycle = null; }} class="space-y-3">
+			<input type="hidden" name="id" value={editingCycle.id} />
+			<div><label class="label">Cycle Name</label><input name="name" class="input" required value={editingCycle.name ?? ''} /></div>
+			<div><label class="label">Duration (Days)</label><input name="interval_days" type="number" class="input" required min="1" value={editingCycle.interval_days ?? ''} /></div>
+			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
+				<button type="button" onclick={() => (editingCycle = null)} class="btn btn-secondary flex-1">Cancel</button>
+				<button type="submit" class="btn btn-primary flex-1">Save Changes</button>
+			</div>
+		</form>
+	{/if}
+</Modal>
+
+<Modal open={!!editingService} title="Edit Service" onclose={() => (editingService = null)}>
+	{#if editingService}
+		<form method="POST" action="?/updateService" use:enhance={() => async ({ update }) => { await update(); editingService = null; }} class="space-y-3">
+			<input type="hidden" name="id" value={editingService.id} />
+			<div><label class="label">Service Name</label><input name="name" class="input" required value={editingService.name ?? ''} /></div>
+			<div><label class="label">Description</label><input name="description" class="input" value={editingService.description ?? ''} placeholder="Description (optional)" /></div>
+			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
+				<button type="button" onclick={() => (editingService = null)} class="btn btn-secondary flex-1">Cancel</button>
+				<button type="submit" class="btn btn-primary flex-1">Save Changes</button>
+			</div>
+		</form>
+	{/if}
+</Modal>

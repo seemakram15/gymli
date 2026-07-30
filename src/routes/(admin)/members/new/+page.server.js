@@ -1,14 +1,23 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { createSupabaseAdminClient } from '$lib/server/supabase.js';
+import { requireRole, scopeGymId } from '$lib/server/rbac.js';
+import { createSubscription } from '$lib/server/billing.js';
+import { memberWelcomeEmail, subscriptionConfirmationEmail, sendEmail } from '$lib/server/email.js';
 
 export const load = async ({ locals }) => {
-	const { data: gyms } = await locals.supabase.from('gyms').select('id, name, city').eq('status', 'active');
+	requireRole(locals, ['superadmin', 'manager']);
+	const gymId = scopeGymId(locals);
+	let gymsQuery = locals.supabase.from('gyms').select('id, name, city').eq('status', 'active');
+	if (gymId) gymsQuery = gymsQuery.eq('id', gymId);
+	const { data: gyms } = await gymsQuery;
 	const { data: packages } = await locals.supabase.from('packages').select('id, name, amount, cycle_id, cycles(name, interval_days)').eq('status', 'active');
 	return { gyms: gyms ?? [], packages: packages ?? [] };
 };
 
 export const actions = {
 	default: async ({ request, locals }) => {
+		requireRole(locals, ['superadmin', 'manager']);
+		const scopedGymId = scopeGymId(locals);
 		const formData = await request.formData();
 
 		const email = formData.get('email');
@@ -23,14 +32,20 @@ export const actions = {
 		const emergency_contact_name = formData.get('emergency_contact_name');
 		const emergency_contact_phone = formData.get('emergency_contact_phone');
 		const medical_notes = formData.get('medical_notes');
-		const gym_id = formData.get('gym_id') || null;
+		// Managers can only enroll members into their own gym, regardless of
+		// what the form submits.
+		const gym_id = scopedGymId ?? (formData.get('gym_id') || null);
 		const package_id = formData.get('package_id') || null;
-		const start_date = formData.get('start_date') || new Date().toISOString().split('T')[0];
-		const amount_due = formData.get('amount_due') || 0;
+		const start_date = formData.get('start_date') || null;
+		const amount_due = formData.get('amount_due');
 
-		if (!full_name || !phone_number) {
-			return fail(400, { error: 'Full name and phone number are required.' });
+		if (!full_name || !phone_number || !email) {
+			return fail(400, { error: 'Full name, email, and phone number are required.' });
 		}
+		if (!gym_id) return fail(400, { error: 'Gym location is required.' });
+		if (!package_id) return fail(400, { error: 'Membership plan is required.' });
+		if (!start_date) return fail(400, { error: 'Membership start date is required.' });
+		if (!amount_due) return fail(400, { error: 'Fee amount is required.' });
 
 		// Create auth user via admin client (service role bypasses email confirmation)
 		const adminClient = createSupabaseAdminClient();
@@ -97,23 +112,32 @@ export const actions = {
 			await locals.supabase.from('profiles').update(urlUpdates).eq('id', userId);
 		}
 
-		// Create subscription if package selected
+		// Create subscription if a package was selected during enrollment
+		let subResult = null;
 		if (package_id) {
-			const { data: pkg } = await locals.supabase.from('packages').select('*, cycles(interval_days)').eq('id', package_id).single();
-			const dueDate = new Date(start_date);
-			if (pkg?.cycles?.interval_days) dueDate.setDate(dueDate.getDate() + pkg.cycles.interval_days);
+			subResult = await createSubscription(locals.supabase, { user_id: userId, package_id, gym_id, start_date, amount_due });
+		}
 
-			await locals.supabase.from('subscriptions').insert({
-				user_id: userId,
-				package_id,
-				gym_id,
-				start_date,
-				due_date: dueDate.toISOString().split('T')[0],
-				amount_due: amount_due || pkg?.amount || 0,
-				amount_paid: 0,
-				payment_status: 'pending',
-				status: 'active',
-			});
+		// Send welcome (+ subscription confirmation, if enrolled with a plan) email.
+		// Wrapped so a Brevo failure never blocks account creation from succeeding.
+		if (email) {
+			const gymName = gym_id
+				? (await locals.supabase.from('gyms').select('name').eq('id', gym_id).single()).data?.name
+				: null;
+			const welcome = memberWelcomeEmail({ full_name, email, password, gymName, planName: subResult?.pkg?.name });
+			const emailSends = [sendEmail(email, welcome.subject, welcome.html)];
+			if (subResult?.subscription && subResult?.pkg) {
+				const confirmation = subscriptionConfirmationEmail({
+					full_name,
+					planName: subResult.pkg.name,
+					amount: subResult.subscription.amount_due,
+					startDate: subResult.subscription.start_date,
+					dueDate: subResult.subscription.due_date,
+					gymName,
+				});
+				emailSends.push(sendEmail(email, confirmation.subject, confirmation.html));
+			}
+			await Promise.all(emailSends);
 		}
 
 		redirect(303, `/members/${userId}`);

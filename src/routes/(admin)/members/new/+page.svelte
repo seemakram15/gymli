@@ -2,12 +2,14 @@
 	import { enhance } from '$app/forms';
 	import { Upload, User, Phone, MapPin, Shield, FileText } from 'lucide-svelte';
 	import { formatCNIC } from '$lib/utils/format.js';
+	import { goBack } from '$lib/utils/nav.js';
 	import Select from '$lib/components/Select.svelte';
 	import DatePicker from '$lib/components/DatePicker.svelte';
 
 	let { data, form } = $props();
 	let loading = $state(false);
 	let tab = $state('personal');
+	let clientError = $state('');
 
 	// Bound to component state (not `value={form?.x ?? ''}`) so nothing gets wiped
 	// if a failed submission re-renders the page with a `form` prop that doesn't
@@ -64,8 +66,27 @@
 		...data.gyms.map((g) => ({ value: g.id, label: `${g.name} — ${g.city}` }))
 	]);
 
+	/**
+	 * Required fields are validated manually because they live on tabs that are
+	 * `display:none` when inactive — native HTML5 required validation silently
+	 * ignores fields that aren't rendered, so switching to another tab and
+	 * submitting would otherwise bypass validation with no feedback at all.
+	 */
+	function validate() {
+		const missing = [];
+		if (!fullName.trim()) missing.push({ tab: 'personal', label: 'Full Name' });
+		if (!email.trim()) missing.push({ tab: 'personal', label: 'Email Address' });
+		else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) missing.push({ tab: 'personal', label: 'a valid Email Address' });
+		if (!phoneNumber.trim()) missing.push({ tab: 'contact', label: 'Phone Number' });
+		if (!gymId) missing.push({ tab: 'membership', label: 'Gym Location' });
+		if (!packageId) missing.push({ tab: 'membership', label: 'Membership Plan' });
+		if (!startDate) missing.push({ tab: 'membership', label: 'Membership Start Date' });
+		if (!String(amountDue).trim()) missing.push({ tab: 'membership', label: 'Fee Amount (PKR)' });
+		return missing;
+	}
+
 	const packageOptions = $derived([
-		{ value: '', label: 'No plan (enroll later)' },
+		{ value: '', label: 'Select plan' },
 		...data.packages.map((p) => ({
 			value: p.id,
 			label: `${p.name} — PKR ${p.amount} / ${p.cycles?.name ?? 'custom'}`
@@ -81,8 +102,8 @@
 		<h1 class="page-title mt-2">Add New Member</h1>
 	</div>
 
-	{#if form?.error}
-		<div class="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm mb-6">{form.error}</div>
+	{#if clientError || form?.error}
+		<div class="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm mb-6">{clientError || form?.error}</div>
 	{/if}
 
 	<div class="flex gap-1 bg-ink-100 p-1 rounded-xl mb-6 overflow-x-auto">
@@ -99,7 +120,16 @@
 		{/each}
 	</div>
 
-	<form method="POST" enctype="multipart/form-data" use:enhance={() => {
+	<form method="POST" enctype="multipart/form-data" use:enhance={({ cancel }) => {
+		clientError = '';
+		const missing = validate();
+		if (missing.length) {
+			cancel();
+			clientError = `Please complete the following required field${missing.length > 1 ? 's' : ''}: ${missing.map((m) => m.label).join(', ')}.`;
+			tab = missing[0].tab;
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+			return;
+		}
 		loading = true;
 		return async ({ update }) => {
 			await update();
@@ -147,7 +177,7 @@
 					</div>
 				</div>
 				<div>
-					<label class="label" for="full_name">Full Name *</label>
+					<label class="label" for="full_name">Full Name <span class="text-red-500">*</span></label>
 					<input id="full_name" name="full_name" type="text" class="input" placeholder="Muhammad Ali" required bind:value={fullName} />
 				</div>
 				<div>
@@ -159,8 +189,8 @@
 					<DatePicker id="date_of_birth" name="date_of_birth" bind:value={dob} placeholder="Pick date of birth" />
 				</div>
 				<div>
-					<label class="label" for="email">Email Address</label>
-					<input id="email" name="email" type="email" class="input" placeholder="member@email.com" bind:value={email} />
+					<label class="label" for="email">Email Address <span class="text-red-500">*</span></label>
+					<input id="email" name="email" type="email" class="input" placeholder="member@email.com" required bind:value={email} />
 					<p class="text-xs text-gray-400 mt-1">Used for login and email reminders</p>
 				</div>
 				<div>
@@ -175,7 +205,7 @@
 			<h3 class="font-semibold text-gray-900 border-b pb-2">Contact & Address</h3>
 			<div class="grid md:grid-cols-2 gap-4">
 				<div>
-					<label class="label" for="phone_number">Phone Number *</label>
+					<label class="label" for="phone_number">Phone Number <span class="text-red-500">*</span></label>
 					<input id="phone_number" name="phone_number" type="tel" class="input" placeholder="+92 300 0000000" required bind:value={phoneNumber} />
 				</div>
 				<div>
@@ -252,20 +282,20 @@
 			<h3 class="font-semibold text-gray-900 border-b pb-2">Membership Plan & Enrollment</h3>
 			<div class="grid md:grid-cols-2 gap-4">
 				<div>
-					<label class="label" for="gym_id">Gym Location</label>
-					<Select id="gym_id" name="gym_id" options={gymOptions} bind:value={gymId} placeholder="Select gym" />
+					<label class="label" for="gym_id">Gym Location <span class="text-red-500">*</span></label>
+					<Select id="gym_id" name="gym_id" options={gymOptions} bind:value={gymId} placeholder="Select gym" searchable searchPlaceholder="Search gyms…" required />
 				</div>
 				<div>
-					<label class="label" for="package_id">Membership Plan</label>
-					<Select id="package_id" name="package_id" options={packageOptions} bind:value={packageId} placeholder="No plan (enroll later)" />
+					<label class="label" for="package_id">Membership Plan <span class="text-red-500">*</span></label>
+					<Select id="package_id" name="package_id" options={packageOptions} bind:value={packageId} placeholder="Select plan" required />
 				</div>
 				<div>
-					<label class="label" for="start_date">Membership Start Date</label>
+					<label class="label" for="start_date">Membership Start Date <span class="text-red-500">*</span></label>
 					<DatePicker id="start_date" name="start_date" bind:value={startDate} placeholder="Start date" />
 				</div>
 				<div>
-					<label class="label" for="amount_due">Fee Amount (PKR)</label>
-					<input id="amount_due" name="amount_due" type="number" class="input" placeholder="Auto-filled from plan" min="0" bind:value={amountDue} />
+					<label class="label" for="amount_due">Fee Amount (PKR) <span class="text-red-500">*</span></label>
+					<input id="amount_due" name="amount_due" type="number" class="input" placeholder="Auto-filled from plan" min="0" required bind:value={amountDue} />
 					<p class="text-xs text-gray-400 mt-1">Override plan amount if needed</p>
 				</div>
 			</div>
@@ -279,7 +309,7 @@
 					tab = tabOrder[tabOrder.indexOf(tab) - 1];
 				}} class="btn-secondary btn">← Back</button>
 			{:else}
-				<a href="/members" class="btn-secondary btn">Cancel</a>
+				<button type="button" onclick={() => goBack('/members')} class="btn-secondary btn">Cancel</button>
 			{/if}
 
 			{#if tab !== 'membership'}

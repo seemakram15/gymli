@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Plus, Trash2, Package } from 'lucide-svelte';
+	import { Plus, Trash2, Pencil, Package } from 'lucide-svelte';
 	import { formatPKR } from '$lib/utils/format.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -13,6 +13,10 @@
 	let pendingDeleteId = $state('');
 	let pendingDeleteName = $state('');
 	let cycleId = $state('');
+
+	let editingPkg = $state(null);
+	let editCycleId = $state('');
+	let editServiceIds = $state([]);
 
 	const cycleOptions = $derived([
 		{ value: '', label: 'Select cycle' },
@@ -29,6 +33,12 @@
 		const formEl = document.getElementById('delete-plan-form');
 		if (formEl instanceof HTMLFormElement) formEl.requestSubmit();
 		confirmOpen = false;
+	}
+
+	function openEdit(pkg) {
+		editingPkg = pkg;
+		editCycleId = pkg.cycle_id ?? '';
+		editServiceIds = (pkg.package_services ?? []).map((ps) => ps.service_id).filter(Boolean);
 	}
 </script>
 
@@ -56,14 +66,24 @@
 					<div class="w-10 h-10 bg-ink-900 text-volt-300 rounded-xl flex items-center justify-center">
 						<Package size={20} />
 					</div>
-					<button
-						type="button"
-						onclick={() => askDelete(pkg)}
-						class="p-2 rounded-lg text-ink-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-						aria-label="Delete plan"
-					>
-						<Trash2 size={16} />
-					</button>
+					<div class="flex items-center gap-1">
+						<button
+							type="button"
+							onclick={() => openEdit(pkg)}
+							class="p-2 rounded-lg text-ink-300 hover:text-ink-800 hover:bg-ink-50 transition-colors"
+							aria-label="Edit plan"
+						>
+							<Pencil size={16} />
+						</button>
+						<button
+							type="button"
+							onclick={() => askDelete(pkg)}
+							class="p-2 rounded-lg text-ink-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+							aria-label="Delete plan"
+						>
+							<Trash2 size={16} />
+						</button>
+					</div>
 				</div>
 				<h3 class="font-display font-bold text-ink-900 text-lg">{pkg.name}</h3>
 				<div class="text-3xl font-extrabold text-ink-900 my-2">{formatPKR(pkg.amount)}</div>
@@ -151,4 +171,59 @@
 			<button type="submit" class="btn btn-primary flex-1" disabled={loading}>{loading ? 'Saving…' : 'Save Plan'}</button>
 		</div>
 	</form>
+</Modal>
+
+<Modal open={!!editingPkg} title="Edit Membership Plan" onclose={() => (editingPkg = null)}>
+	{#if editingPkg}
+		<form
+			method="POST"
+			action="?/update"
+			use:enhance={() => {
+				loading = true;
+				return async ({ update }) => {
+					await update();
+					loading = false;
+					editingPkg = null;
+				};
+			}}
+			class="space-y-4"
+		>
+			<input type="hidden" name="id" value={editingPkg.id} />
+			<div>
+				<label class="label">Plan Name *</label>
+				<input name="name" class="input" required value={editingPkg.name ?? ''} placeholder="e.g. Monthly Basic" />
+			</div>
+			<div class="grid sm:grid-cols-2 gap-4">
+				<div>
+					<label class="label">Billing Cycle *</label>
+					<Select name="cycle_id" options={cycleOptions} bind:value={editCycleId} placeholder="Select cycle" required />
+				</div>
+				<div>
+					<label class="label">Amount (PKR) *</label>
+					<input name="amount" type="number" class="input" required min="0" value={editingPkg.amount ?? ''} placeholder="5000" />
+				</div>
+			</div>
+			<div>
+				<label class="label">Description</label>
+				<textarea name="description" class="input" rows="2" placeholder="What's included in this plan…">{editingPkg.description ?? ''}</textarea>
+			</div>
+			{#if data.services.length}
+				<div>
+					<label class="label">Included Services</label>
+					<div class="flex flex-wrap gap-2 mt-1">
+						{#each data.services as s}
+							<label class="flex items-center gap-1.5 text-sm cursor-pointer bg-ink-50 border border-ink-100 rounded-lg px-3 py-2 hover:border-ink-300">
+								<input type="checkbox" name="service_ids" value={s.id} checked={editServiceIds.includes(s.id)} class="rounded border-ink-300 accent-ink-900" />
+								{s.name}
+							</label>
+						{/each}
+					</div>
+				</div>
+			{/if}
+			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
+				<button type="button" onclick={() => (editingPkg = null)} class="btn btn-secondary flex-1">Cancel</button>
+				<button type="submit" class="btn btn-primary flex-1" disabled={loading}>{loading ? 'Saving…' : 'Save Changes'}</button>
+			</div>
+		</form>
+	{/if}
 </Modal>

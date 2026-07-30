@@ -14,7 +14,7 @@ export const actions = {
 			email,
 			password,
 			options: {
-				data: { full_name, role: 'owner' }
+				data: { full_name, role: 'superadmin' }
 			}
 		});
 
@@ -28,7 +28,7 @@ export const actions = {
 				id: authData.user.id,
 				full_name,
 				phone_number: phone,
-				role: 'owner',
+				role: 'superadmin',
 				city,
 			});
 

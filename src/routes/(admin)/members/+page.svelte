@@ -89,7 +89,7 @@
 					</tr>
 				{:else}
 					{#each data.members as m}
-						<tr>
+						<tr onclick={() => goto(`/members/${m.id}`)} class="cursor-pointer">
 							<td>
 								<div class="flex items-center gap-3">
 									<div class="w-8 h-8 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
@@ -104,7 +104,7 @@
 							<td class="font-mono text-xs">{m.cnic_number ?? '—'}</td>
 							<td>
 								{#if m.phone_number}
-									<a href="tel:{m.phone_number}" class="flex items-center gap-1 text-brand-600 hover:text-brand-700">
+									<a href="tel:{m.phone_number}" onclick={(e) => e.stopPropagation()} class="flex items-center gap-1 text-brand-600 hover:text-brand-700">
 										<Phone size={13} />{m.phone_number}
 									</a>
 								{:else}—{/if}
@@ -117,7 +117,7 @@
 							</td>
 							<td class="text-gray-500">{formatDate(m.created_at)}</td>
 							<td class="text-right">
-								<a href="/members/{m.id}" class="btn-ghost btn btn-sm inline-flex">
+								<a href="/members/{m.id}" onclick={(e) => e.stopPropagation()} class="btn-ghost btn btn-sm inline-flex">
 									<Eye size={14} /> View
 								</a>
 							</td>

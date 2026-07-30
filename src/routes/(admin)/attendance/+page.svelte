@@ -38,7 +38,7 @@
 		<h3 class="font-semibold text-ink-900 mb-3 flex items-center gap-2"><UserCheck size={16} /> Quick Check-in</h3>
 		<form method="POST" action="?/checkIn" use:enhance class="flex flex-col sm:flex-row gap-3">
 			<div class="flex-1">
-				<Select name="user_id" options={memberOptions} bind:value={selectedUser} placeholder="Select member…" required />
+				<Select name="user_id" options={memberOptions} bind:value={selectedUser} placeholder="Select member…" searchable searchPlaceholder="Search members…" required />
 			</div>
 			<button type="submit" class="btn btn-primary" disabled={!selectedUser}>Check In</button>
 		</form>

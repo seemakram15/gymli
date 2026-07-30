@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&family=Yellowtail&display=swap');
+@import "tailwindcss";
 
 @theme {
   --font-family-sans: 'DM Sans', system-ui, sans-serif;
@@ -231,23 +231,18 @@ tbody tr { @apply border-t border-ink-50 hover:bg-ink-50/80 transition-colors; }
 
 /* ── Modal shell ── */
 .modal-backdrop {
-  @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center;
+  @apply fixed inset-0 z-50 flex items-center justify-center;
   background: rgba(10, 10, 8, 0.55);
   backdrop-filter: blur(4px);
-  padding: 0;
-}
-@media (min-width: 640px) {
-  .modal-backdrop { padding: 1rem; }
+  padding: 1rem;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 .modal-panel {
-  @apply bg-white w-full sm:max-w-lg sm:rounded-2xl border border-ink-100;
-  border-radius: 1.25rem 1.25rem 0 0;
-  max-height: min(92vh, 900px);
+  @apply bg-white w-full sm:max-w-lg rounded-2xl border border-ink-100 shadow-2xl;
+  max-height: min(88dvh, 900px);
   overflow-y: auto;
   animation: modal-in 0.25s ease-out;
-}
-@media (min-width: 640px) {
-  .modal-panel { border-radius: 1.25rem; }
 }
 
 /* ── Animations ── */
