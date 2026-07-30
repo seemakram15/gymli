@@ -1,0 +1,24 @@
+# SvelteKit
+.svelte-kit
+build
+
+# Dependencies
+node_modules
+
+# Env — never commit real keys
+.env
+.env.*
+!.env.example
+
+# Editor
+.vscode
+.idea
+.fleet
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
