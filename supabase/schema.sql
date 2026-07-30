@@ -26,9 +26,14 @@ create table if not exists public.profiles (
   status text not null default 'active'
     check (status in ('active', 'inactive', 'suspended', 'frozen')),
   gym_id uuid,               -- FK added after gyms table
+  checkin_code text,
+  checkin_code_expires_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+create unique index if not exists idx_profiles_checkin_code
+  on public.profiles(checkin_code) where checkin_code is not null;
 
 -- Auto-create profile on signup
 create or replace function public.handle_new_user()
@@ -187,7 +192,8 @@ create table if not exists public.attendance (
   gym_id uuid references public.gyms(id),
   branch_id uuid,
   checked_in_at timestamptz not null default now(),
-  checked_out_at timestamptz
+  checked_out_at timestamptz,
+  checkin_method text not null default 'manual' check (checkin_method in ('manual', 'code'))
 );
 
 create index if not exists idx_attendance_user on public.attendance(user_id);
@@ -210,6 +216,9 @@ create table if not exists public.reminder_settings (
   expiry_reminder_email boolean not null default true,
   expiry_reminder_sms boolean not null default false,
   expiry_reminder_days integer not null default 7,
+  overdue_grace_days integer not null default 0,
+  inactivity_days integer not null default 14,
+  inactivity_email boolean not null default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   unique(gym_id)
@@ -418,12 +427,17 @@ create policy "Superadmin manage reminder settings" on public.reminder_settings
 -- ─────────────────────────────────────────────────────────────────
 create table if not exists public.reminder_log (
   id uuid primary key default gen_random_uuid(),
-  subscription_id uuid not null references public.subscriptions(id) on delete cascade,
-  kind text not null check (kind in ('due_soon', 'due_today', 'overdue', 'expiry')),
+  subscription_id uuid references public.subscriptions(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete cascade,
+  kind text not null check (kind in ('due_soon', 'due_today', 'overdue', 'expiry', 'inactivity')),
   sent_date date not null default current_date,
   created_at timestamptz default now(),
-  unique(subscription_id, kind, sent_date)
+  unique(subscription_id, kind, sent_date),
+  constraint reminder_log_target_check check (subscription_id is not null or user_id is not null)
 );
+
+create unique index if not exists idx_reminder_log_user_kind_date
+  on public.reminder_log(user_id, kind, sent_date) where user_id is not null;
 
 alter table public.reminder_log enable row level security;
 

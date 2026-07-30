@@ -49,6 +49,7 @@ export const actions = {
 		const gym_id = scopedGymId ?? (data.get('gym_id') || null);
 		const start_date = data.get('start_date') || null;
 		const amount_due = data.get('amount_due');
+		const discount = data.get('discount') || 0;
 
 		if (!user_id) return fail(400, { error: 'Select a member.' });
 		if (!package_id) return fail(400, { error: 'Select a membership plan.' });
@@ -59,7 +60,7 @@ export const actions = {
 		const { data: target } = await locals.supabase.from('profiles').select('gym_id, full_name').eq('id', user_id).single();
 		requireGymAccess(locals, target?.gym_id);
 
-		const { subscription, pkg, error: err } = await createSubscription(locals.supabase, { user_id, package_id, gym_id, start_date, amount_due });
+		const { subscription, pkg, error: err } = await createSubscription(locals.supabase, { user_id, package_id, gym_id, start_date, amount_due, discount });
 		if (err) return fail(400, { error: err });
 
 		const [{ data: emailData }, gymRes] = await Promise.all([

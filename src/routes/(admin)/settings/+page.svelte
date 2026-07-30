@@ -109,6 +109,10 @@
 						<input type="checkbox" name="overdue_email" class="rounded text-brand-600" checked={data.reminderSettings.overdue_email} />
 						Send overdue email reminders
 					</label>
+					<div class="flex items-center gap-4 pt-2 border-t border-red-100">
+						<label class="label mb-0 whitespace-nowrap">Check-in grace period (days overdue still allowed):</label>
+						<input name="overdue_grace_days" type="number" class="input w-20" value={data.reminderSettings.overdue_grace_days} min="0" />
+					</div>
 				</div>
 
 				<div class="bg-purple-50 rounded-lg p-4 space-y-3">
@@ -120,6 +124,18 @@
 					<label class="flex items-center gap-2 text-sm cursor-pointer">
 						<input type="checkbox" name="expiry_reminder_email" class="rounded text-brand-600" checked={data.reminderSettings.expiry_reminder_email} />
 						Send expiry reminder email
+					</label>
+				</div>
+
+				<div class="bg-ink-50 rounded-lg p-4 space-y-3">
+					<h4 class="font-medium text-ink-900">Attendance Re-engagement</h4>
+					<div class="flex items-center gap-4">
+						<label class="label mb-0 whitespace-nowrap">Days inactive before email:</label>
+						<input name="inactivity_days" type="number" class="input w-20" value={data.reminderSettings.inactivity_days} min="1" />
+					</div>
+					<label class="flex items-center gap-2 text-sm cursor-pointer">
+						<input type="checkbox" name="inactivity_email" class="rounded text-brand-600" checked={data.reminderSettings.inactivity_email} />
+						Email members who haven't checked in recently
 					</label>
 				</div>
 

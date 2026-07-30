@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { UserCheck } from 'lucide-svelte';
+	import { UserCheck, Download, KeyRound } from 'lucide-svelte';
 	import { formatDateTime, initials } from '$lib/utils/format.js';
 	import Select from '$lib/components/Select.svelte';
 	import DatePicker from '$lib/components/DatePicker.svelte';
@@ -10,6 +10,7 @@
 	let { data, form } = $props();
 	let selectedUser = $state('');
 	let date = $state(data.date);
+	let code = $state('');
 
 	const memberOptions = $derived([
 		{ value: '', label: 'Select member to check in…' },
@@ -22,6 +23,23 @@
 		params.set('date', val);
 		goto(`?${params}`);
 	}
+
+	function downloadCSV() {
+		const rows = [
+			['Member', 'Checked In', 'Checked Out', 'Method'],
+			...data.attendance.map((row) => [
+				row.profiles?.full_name ?? '—',
+				row.checked_in_at,
+				row.checked_out_at ?? '',
+				row.checkin_method ?? 'manual',
+			]),
+		];
+		const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
+		const link = document.createElement('a');
+		link.href = 'data:text/csv,' + encodeURIComponent(csv);
+		link.download = `attendance_${data.date}.csv`;
+		link.click();
+	}
 </script>
 
 <svelte:head><title>Attendance — GymLi</title></svelte:head>
@@ -29,20 +47,37 @@
 <div class="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
 	<div class="page-header">
 		<h1 class="page-title">Attendance</h1>
-		<div class="w-full sm:w-48">
-			<DatePicker value={date} onchange={applyDate} placeholder="Pick date" />
+		<div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+			<div class="w-full sm:w-48">
+				<DatePicker value={date} onchange={applyDate} placeholder="Pick date" />
+			</div>
+			<button onclick={downloadCSV} class="btn btn-secondary"><Download size={16} /> Export CSV</button>
 		</div>
 	</div>
 
-	<div class="card p-5">
-		<h3 class="font-semibold text-ink-900 mb-3 flex items-center gap-2"><UserCheck size={16} /> Quick Check-in</h3>
-		<form method="POST" action="?/checkIn" use:enhance class="flex flex-col sm:flex-row gap-3">
-			<div class="flex-1">
-				<Select name="user_id" options={memberOptions} bind:value={selectedUser} placeholder="Select member…" searchable searchPlaceholder="Search members…" required />
-			</div>
-			<button type="submit" class="btn btn-primary" disabled={!selectedUser}>Check In</button>
-		</form>
-		{#if form?.success}<div class="mt-2 text-sm text-volt-700 font-medium">Checked in successfully</div>{/if}
+	<div class="grid sm:grid-cols-2 gap-4">
+		<div class="card p-5">
+			<h3 class="font-semibold text-ink-900 mb-3 flex items-center gap-2"><UserCheck size={16} /> Quick Check-in</h3>
+			<form method="POST" action="?/checkIn" use:enhance class="flex flex-col sm:flex-row gap-3">
+				<div class="flex-1">
+					<Select name="user_id" options={memberOptions} bind:value={selectedUser} placeholder="Select member…" searchable searchPlaceholder="Search members…" required />
+				</div>
+				<button type="submit" class="btn btn-primary" disabled={!selectedUser}>Check In</button>
+			</form>
+			{#if form?.success}<div class="mt-2 text-sm text-volt-700 font-medium">Checked in successfully</div>{/if}
+		</div>
+
+		<div class="card p-5">
+			<h3 class="font-semibold text-ink-900 mb-3 flex items-center gap-2"><KeyRound size={16} /> Check-in by Code</h3>
+			<form method="POST" action="?/checkInByCode" use:enhance={() => {
+				return async ({ update }) => { await update(); code = ''; };
+			}} class="flex flex-col sm:flex-row gap-3">
+				<input name="code" bind:value={code} class="input flex-1 font-mono tracking-widest" placeholder="6-digit code" maxlength="6" required />
+				<button type="submit" class="btn btn-primary" disabled={!code}>Check In</button>
+			</form>
+			{#if form?.codeSuccess}<div class="mt-2 text-sm text-volt-700 font-medium">Checked in {form.checkedInName}</div>{/if}
+			{#if form?.codeError}<div class="mt-2 text-sm text-red-600 font-medium">{form.codeError}</div>{/if}
+		</div>
 	</div>
 
 	<div class="card">

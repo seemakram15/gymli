@@ -25,7 +25,7 @@ export const load = async ({ locals }) => {
 };
 
 export const actions = {
-	default: async ({ request, locals }) => {
+	default: async ({ request, locals, url }) => {
 		requireRole(locals, ['superadmin', 'manager', 'instructor']);
 		const scopedGymId = scopeGymId(locals);
 		const data = await request.formData();
@@ -66,6 +66,7 @@ export const actions = {
 				gymName: gymRes?.data?.name,
 				totalPaid: subscription?.amount_paid,
 				amountDue: subscription?.amount_due,
+				receiptUrl: `${url.origin}/payments/${payment.id}/receipt`,
 			});
 			await sendEmail(emailData, subject, html);
 		}

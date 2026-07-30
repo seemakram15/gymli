@@ -8,6 +8,8 @@ export const load = async ({ locals }) => {
 	const weekStart = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
 	const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
+	const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+
 	const [
 		{ count: totalMembers },
 		{ count: activeSubscriptions },
@@ -17,6 +19,10 @@ export const load = async ({ locals }) => {
 		{ data: dueSoonMembers },
 		{ data: recentPayments },
 		{ data: recentMembers },
+		{ count: attendanceToday },
+		{ count: attendanceWeek },
+		{ count: newMembers30d },
+		{ count: cancelledSubs30d },
 	] = await Promise.all([
 		applyGymScope(supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'member'), gymId),
 		applyGymScope(supabase.from('subscriptions').select('*', { count: 'exact', head: true }).eq('status', 'active'), gymId),
@@ -48,6 +54,10 @@ export const load = async ({ locals }) => {
 				.eq('role', 'member'),
 			gymId
 		).order('created_at', { ascending: false }).limit(5),
+		applyGymScope(supabase.from('attendance').select('*', { count: 'exact', head: true }).gte('checked_in_at', today + 'T00:00:00'), gymId),
+		applyGymScope(supabase.from('attendance').select('*', { count: 'exact', head: true }).gte('checked_in_at', weekStart + 'T00:00:00'), gymId),
+		applyGymScope(supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'member').gte('created_at', monthAgo), gymId),
+		applyGymScope(supabase.from('subscriptions').select('*', { count: 'exact', head: true }).eq('status', 'cancelled').gte('updated_at', monthAgo), gymId),
 	]);
 
 	const payments = collectionData ?? [];
@@ -65,6 +75,10 @@ export const load = async ({ locals }) => {
 			collectionWeek,
 			collectionMonth,
 			collectionTotal,
+			attendanceToday: attendanceToday ?? 0,
+			attendanceWeek: attendanceWeek ?? 0,
+			newMembers30d: newMembers30d ?? 0,
+			cancelledSubs30d: cancelledSubs30d ?? 0,
 		},
 		overdueMembers: overdueMembers ?? [],
 		dueSoonMembers: dueSoonMembers ?? [],

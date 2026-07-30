@@ -17,12 +17,18 @@ export const actions = {
 			return fail(400, { error: 'Email and password are required', email });
 		}
 
-		const { error } = await locals.supabase.auth.signInWithPassword({ email, password });
+		const { data: signInData, error } = await locals.supabase.auth.signInWithPassword({ email, password });
 
 		if (error) {
 			return fail(400, { error: error.message, email });
 		}
 
-		redirect(303, '/dashboard');
+		const { data: profile } = await locals.supabase
+			.from('profiles')
+			.select('role')
+			.eq('id', signInData.user.id)
+			.single();
+
+		redirect(303, profile?.role === 'member' ? '/my-checkin' : '/dashboard');
 	}
 };

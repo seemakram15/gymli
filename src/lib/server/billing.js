@@ -6,7 +6,7 @@
  * action type. This module is pure DB work — it does not send email.
  */
 
-export async function createSubscription(supabase, { user_id, package_id, gym_id, start_date, amount_due }) {
+export async function createSubscription(supabase, { user_id, package_id, gym_id, start_date, amount_due, discount }) {
 	const { data: pkg, error: pkgError } = await supabase
 		.from('packages')
 		.select('*, cycles(name, interval_days)')
@@ -18,6 +18,9 @@ export async function createSubscription(supabase, { user_id, package_id, gym_id
 	const dueDate = new Date(effectiveStart);
 	if (pkg.cycles?.interval_days) dueDate.setDate(dueDate.getDate() + pkg.cycles.interval_days);
 
+	const grossAmount = Number(amount_due) || Number(pkg.amount) || 0;
+	const netDiscount = Math.min(Number(discount) || 0, grossAmount);
+
 	const { data: subscription, error: err } = await supabase
 		.from('subscriptions')
 		.insert({
@@ -26,7 +29,8 @@ export async function createSubscription(supabase, { user_id, package_id, gym_id
 			gym_id,
 			start_date: effectiveStart,
 			due_date: dueDate.toISOString().split('T')[0],
-			amount_due: amount_due || pkg.amount || 0,
+			amount_due: grossAmount - netDiscount,
+			discount: netDiscount,
 			amount_paid: 0,
 			payment_status: 'pending',
 			status: 'active',

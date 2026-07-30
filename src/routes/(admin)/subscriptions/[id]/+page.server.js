@@ -35,6 +35,7 @@ export const actions = {
 			.from('subscriptions')
 			.update({
 				amount_due: Number(data.get('amount_due')),
+				discount: Number(data.get('discount')) || 0,
 				due_date: data.get('due_date') || null,
 				status: data.get('status') || 'active',
 			})

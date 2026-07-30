@@ -12,6 +12,8 @@ const DEFAULT_SETTINGS = {
 	overdue_email: true,
 	expiry_reminder_days: 7,
 	expiry_reminder_email: true,
+	inactivity_days: 14,
+	inactivity_email: false,
 };
 
 function todayISO() {
@@ -50,6 +52,12 @@ async function claimSend(supabase, subscription_id, kind) {
 	return !error;
 }
 
+/** Same dedupe mechanism as claimSend, keyed by member instead of subscription (for reminders that aren't billing-cycle-scoped). */
+async function claimSendForUser(supabase, user_id, kind) {
+	const { error } = await supabase.from('reminder_log').insert({ user_id, kind });
+	return !error;
+}
+
 export const GET = async ({ request }) => {
 	if (env.CRON_SECRET) {
 		const auth = request.headers.get('authorization');
@@ -60,7 +68,7 @@ export const GET = async ({ request }) => {
 
 	const supabase = createSupabaseAdminClient();
 	const today = todayISO();
-	const result = { flippedOverdue: 0, dueSoon: 0, dueToday: 0, overdue: 0, expiry: 0, errors: [] };
+	const result = { flippedOverdue: 0, dueSoon: 0, dueToday: 0, overdue: 0, expiry: 0, inactivity: 0, errors: [] };
 
 	const { data: settingsRow } = await supabase
 		.from('reminder_settings')
@@ -166,6 +174,46 @@ export const GET = async ({ request }) => {
 				`Your GymLi membership expires in ${settings.expiry_reminder_days} days`,
 				`<p style="color:#52525b;font-size:14px;line-height:1.6">Your <strong>${sub.packages?.name ?? 'membership'}</strong> expires on ${formatDate(sub.expires_at)}. Renew to keep your access.</p>`
 			);
+		}
+	}
+
+	// Attendance-based re-engagement: active members who haven't checked in for
+	// exactly `inactivity_days` (or never have, counted from signup).
+	if (settings.inactivity_email) {
+		const { data: activeMembers } = await supabase
+			.from('profiles')
+			.select('id, full_name, created_at')
+			.eq('role', 'member')
+			.eq('status', 'active');
+		const { data: attendanceRows } = await supabase
+			.from('attendance')
+			.select('user_id, checked_in_at')
+			.order('checked_in_at', { ascending: false });
+
+		const lastVisitByUser = new Map();
+		for (const row of attendanceRows ?? []) {
+			if (!lastVisitByUser.has(row.user_id)) lastVisitByUser.set(row.user_id, row.checked_in_at);
+		}
+
+		for (const member of activeMembers ?? []) {
+			const lastVisit = lastVisitByUser.get(member.id) ?? member.created_at;
+			if (!lastVisit) continue;
+			const daysSince = daysBetween(lastVisit.split('T')[0], today);
+			if (daysSince !== settings.inactivity_days) continue;
+
+			const claimed = await claimSendForUser(supabase, member.id, 'inactivity');
+			if (!claimed) continue;
+			const email = await supabase.rpc('get_auth_email', { uid: member.id });
+			const to = email?.data;
+			if (!to) continue;
+
+			const subject = 'We miss you at the gym!';
+			const ok = await sendEmail(
+				to,
+				subject,
+				emailShell(subject, `<p style="color:#52525b;font-size:14px;line-height:1.6">Hi ${member.full_name ?? 'there'}, it's been ${settings.inactivity_days} days since your last visit. Come back and keep your progress going!</p>`)
+			);
+			if (ok) result.inactivity += 1;
 		}
 	}
 

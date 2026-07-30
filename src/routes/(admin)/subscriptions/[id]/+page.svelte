@@ -15,6 +15,7 @@
 	let loading = $state(false);
 
 	let editAmountDue = $state(data.subscription.amount_due);
+	let editDiscount = $state(data.subscription.discount ?? 0);
 	let editDueDate = $state(data.subscription.due_date ?? '');
 	let editStatus = $state(data.subscription.status);
 
@@ -30,6 +31,7 @@
 
 	function openEdit() {
 		editAmountDue = data.subscription.amount_due;
+		editDiscount = data.subscription.discount ?? 0;
 		editDueDate = data.subscription.due_date ?? '';
 		editStatus = data.subscription.status;
 		editOpen = true;
@@ -58,6 +60,9 @@
 			<div><span class="text-ink-400">Start Date</span><div class="font-medium text-ink-900">{formatDate(data.subscription.start_date)}</div></div>
 			<div><span class="text-ink-400">Due Date</span><div class="font-medium text-ink-900">{formatDate(data.subscription.due_date)}</div></div>
 			<div><span class="text-ink-400">Amount Due</span><div class="font-medium text-ink-900">{formatPKR(data.subscription.amount_due)}</div></div>
+			{#if data.subscription.discount > 0}
+				<div><span class="text-ink-400">Discount Applied</span><div class="font-medium text-volt-700">-{formatPKR(data.subscription.discount)}</div></div>
+			{/if}
 			<div><span class="text-ink-400">Amount Paid</span><div class="font-medium text-green-600">{formatPKR(data.subscription.amount_paid)}</div></div>
 			<div><span class="text-ink-400">Balance</span><div class="font-semibold {balance > 0 ? 'text-red-600' : 'text-green-600'}">{formatPKR(balance)}</div></div>
 			<div><span class="text-ink-400">Status</span><div class="font-medium text-ink-900 capitalize">{data.subscription.status}</div></div>
@@ -130,6 +135,7 @@
 		return async ({ update }) => { await update(); loading = false; editOpen = false; };
 	}} class="space-y-3">
 		<div><label class="label">Amount Due (PKR) *</label><input name="amount_due" type="number" class="input" required min="0" bind:value={editAmountDue} /></div>
+		<div><label class="label">Discount (PKR)</label><input name="discount" type="number" class="input" min="0" bind:value={editDiscount} /></div>
 		<div><label class="label">Due Date</label><DatePicker name="due_date" bind:value={editDueDate} placeholder="Due date" /></div>
 		<div>
 			<label class="label">Status</label>

@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
-	import { TrendingUp, Calendar, ChevronLeft, ChevronRight, Pencil, Ban } from 'lucide-svelte';
+	import { TrendingUp, Calendar, ChevronLeft, ChevronRight, Pencil, Ban, Receipt } from 'lucide-svelte';
 	import { formatPKR, formatDateTime } from '$lib/utils/format.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -115,6 +115,7 @@
 						{#if canManage}
 							<td class="text-right">
 								<div class="flex items-center gap-3 justify-end">
+									<a href="/payments/{p.id}/receipt" class="text-ink-400 hover:text-ink-800 transition-colors" aria-label="View receipt"><Receipt size={14} /></a>
 									<button type="button" onclick={() => openEdit(p)} class="text-ink-400 hover:text-ink-800 transition-colors" aria-label="Edit payment"><Pencil size={14} /></button>
 									<button type="button" onclick={() => askVoid(p)} class="text-ink-400 hover:text-red-600 transition-colors" aria-label="Void payment"><Ban size={14} /></button>
 								</div>

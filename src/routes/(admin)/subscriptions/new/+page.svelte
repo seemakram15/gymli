@@ -12,6 +12,7 @@
 	let gymId = $state(data.member?.gym_id ?? '');
 	let startDate = $state(new Date().toISOString().split('T')[0]);
 	let amountDue = $state('');
+	let discount = $state('');
 
 	const memberOptions = $derived([
 		{ value: '', label: 'Select member' },
@@ -112,6 +113,11 @@
 					bind:value={amountDue}
 				/>
 				<p class="text-xs text-ink-400 mt-1">{selectedPackage ? `Plan price: ${formatPKR(selectedPackage.amount)}` : 'Select a plan to see its price'}</p>
+			</div>
+			<div>
+				<label class="label" for="discount">Discount (PKR)</label>
+				<input id="discount" name="discount" type="number" class="input" placeholder="0" min="0" bind:value={discount} />
+				<p class="text-xs text-ink-400 mt-1">Optional — deducted from the fee amount above.</p>
 			</div>
 			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
 				<button type="button" onclick={() => goBack(data.member ? `/members/${data.member.id}` : '/subscriptions')} class="btn btn-secondary flex-1 text-center">Cancel</button>

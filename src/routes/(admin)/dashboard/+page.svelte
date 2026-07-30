@@ -1,5 +1,5 @@
 <script>
-	import { Users, CreditCard, AlertCircle, TrendingUp, ArrowRight, Clock, Plus, DollarSign, Activity } from 'lucide-svelte';
+	import { Users, CreditCard, AlertCircle, TrendingUp, ArrowRight, Clock, Plus, DollarSign, Activity, UserCheck, UserPlus } from 'lucide-svelte';
 	import { formatPKR, formatDate, formatDateTime } from '$lib/utils/format.js';
 
 	let { data } = $props();
@@ -38,6 +38,22 @@
 			icon: DollarSign,
 			grad: 'from-ink-700 to-ink-900',
 			light: 'bg-ink-50 text-ink-700'
+		},
+		{
+			label: 'Check-ins Today',
+			value: stats.attendanceToday,
+			sub: `This week: ${stats.attendanceWeek}`,
+			icon: UserCheck,
+			grad: 'from-sky-500 to-blue-600',
+			light: 'bg-sky-50 text-sky-700'
+		},
+		{
+			label: 'New Members (30d)',
+			value: stats.newMembers30d,
+			sub: `${stats.cancelledSubs30d} cancelled in the same period`,
+			icon: UserPlus,
+			grad: 'from-purple-500 to-fuchsia-600',
+			light: 'bg-purple-50 text-purple-700'
 		}
 	]);
 

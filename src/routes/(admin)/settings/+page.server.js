@@ -24,6 +24,9 @@ export const load = async ({ locals }) => {
 			overdue_email: true,
 			expiry_reminder_days: 7,
 			expiry_reminder_email: true,
+			overdue_grace_days: 0,
+			inactivity_days: 14,
+			inactivity_email: false,
 		},
 		cycles: cycles ?? [],
 		services: services ?? [],
@@ -54,6 +57,9 @@ export const actions = {
 			overdue_email: data.get('overdue_email') === 'on',
 			expiry_reminder_days: Number(data.get('expiry_reminder_days')),
 			expiry_reminder_email: data.get('expiry_reminder_email') === 'on',
+			overdue_grace_days: Number(data.get('overdue_grace_days')) || 0,
+			inactivity_days: Number(data.get('inactivity_days')) || 14,
+			inactivity_email: data.get('inactivity_email') === 'on',
 		};
 
 		// Postgres treats every NULL as distinct, so `unique(gym_id)` never lets

@@ -156,7 +156,7 @@ export function memberWelcomeEmail({ full_name, email, password, gymName, planNa
 	return { subject, html };
 }
 
-export function paymentReceiptEmail({ full_name, amount, method, paid_at, planName, gymName, totalPaid, amountDue }) {
+export function paymentReceiptEmail({ full_name, amount, method, paid_at, planName, gymName, totalPaid, amountDue, receiptUrl }) {
 	const subject = `Payment received — ${formatPKR(amount)}`;
 	const balance = amountDue !== undefined && totalPaid !== undefined ? Math.max(Number(amountDue) - Number(totalPaid), 0) : undefined;
 	const html = shell({
@@ -164,15 +164,35 @@ export function paymentReceiptEmail({ full_name, amount, method, paid_at, planNa
 		icon: '🧾',
 		headline: 'Payment confirmed',
 		description: `Hi ${full_name}, we've recorded your payment. Here's your receipt.`,
-		bodyHtml: dataTable([
-			['Amount Paid', formatPKR(amount)],
-			['Method', method],
-			['Date', formatDate(paid_at)],
-			['Plan', planName],
-			['Gym', gymName],
-			['Total Paid to Date', totalPaid !== undefined ? formatPKR(totalPaid) : undefined],
-			['Balance Due', balance !== undefined ? formatPKR(balance) : undefined],
-		]),
+		bodyHtml: `
+			${dataTable([
+				['Amount Paid', formatPKR(amount)],
+				['Method', method],
+				['Date', formatDate(paid_at)],
+				['Plan', planName],
+				['Gym', gymName],
+				['Total Paid to Date', totalPaid !== undefined ? formatPKR(totalPaid) : undefined],
+				['Balance Due', balance !== undefined ? formatPKR(balance) : undefined],
+			])}
+			${receiptUrl ? `<p style="text-align:center;font-family:${FONT}"><a href="${receiptUrl}" style="color:${BRAND_GREEN};font-weight:700;font-size:14px;text-decoration:none">View / download receipt →</a></p>` : ''}
+		`,
+	});
+	return { subject, html };
+}
+
+function escapeHtml(str) {
+	return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+export function manualMessageEmail({ full_name, message, gymName }) {
+	const subject = `A message from ${gymName ?? 'GymLi'}`;
+	const html = shell({
+		pillLabel: 'Message',
+		pillColor: { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
+		icon: '📣',
+		headline: 'You have a new message',
+		description: `Hi ${full_name}, ${gymName ?? 'your gym'} sent you the following:`,
+		bodyHtml: `<p style="font-size:14px;color:#3f3f46;line-height:1.7;white-space:pre-wrap;margin:0">${escapeHtml(message)}</p>`,
 	});
 	return { subject, html };
 }

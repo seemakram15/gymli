@@ -112,7 +112,7 @@ export const actions = {
 		return { success: true };
 	},
 
-	addPayment: async ({ request, locals, params }) => {
+	addPayment: async ({ request, locals, params, url }) => {
 		requireRole(locals, ['superadmin', 'manager', 'instructor']);
 		const { data: target } = await locals.supabase.from('profiles').select('gym_id, full_name').eq('id', params.id).single();
 		requireGymAccess(locals, target?.gym_id);
@@ -144,6 +144,7 @@ export const actions = {
 				gymName: gymRes?.data?.name,
 				totalPaid: subscription?.amount_paid,
 				amountDue: subscription?.amount_due,
+				receiptUrl: `${url.origin}/payments/${payment.id}/receipt`,
 			});
 			await sendEmail(emailData, subject, html);
 		}
