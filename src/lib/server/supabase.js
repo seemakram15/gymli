@@ -3,24 +3,23 @@ import { createClient } from '@supabase/supabase-js';
 import { env as publicEnv } from '$env/dynamic/public';
 import { env as privateEnv } from '$env/dynamic/private';
 
-function requireEnv(value, name) {
-	if (!value) {
-		throw new Error(
-			`Missing ${name}. Set it in Vercel → Project Settings → Environment Variables (and locally in .env).`
-		);
-	}
-	return value;
+function getPublicConfig() {
+	const url = publicEnv.PUBLIC_SUPABASE_URL;
+	const anonKey = publicEnv.PUBLIC_SUPABASE_ANON_KEY;
+	if (!url || !anonKey) return null;
+	return { url, anonKey };
 }
 
 /**
  * Cookie-based SSR client — respects RLS, tied to the logged-in user's session.
- * Use in load functions and form actions via event.locals.supabase.
+ * Returns null when public Supabase env vars are missing (so marketing pages
+ * can still render instead of hard-500ing the whole app).
  */
 export function createSupabaseServerClient(event) {
-	const url = requireEnv(publicEnv.PUBLIC_SUPABASE_URL, 'PUBLIC_SUPABASE_URL');
-	const anonKey = requireEnv(publicEnv.PUBLIC_SUPABASE_ANON_KEY, 'PUBLIC_SUPABASE_ANON_KEY');
+	const config = getPublicConfig();
+	if (!config) return null;
 
-	return createServerClient(url, anonKey, {
+	return createServerClient(config.url, config.anonKey, {
 		cookies: {
 			getAll: () => event.cookies.getAll(),
 			setAll: (cookies) => {
@@ -39,10 +38,16 @@ export function createSupabaseServerClient(event) {
  * NEVER expose this client or its key to the browser.
  */
 export function createSupabaseAdminClient() {
-	const url = requireEnv(publicEnv.PUBLIC_SUPABASE_URL, 'PUBLIC_SUPABASE_URL');
-	const serviceKey = requireEnv(privateEnv.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY');
+	const config = getPublicConfig();
+	const serviceKey = privateEnv.SUPABASE_SERVICE_ROLE_KEY;
 
-	return createClient(url, serviceKey, {
+	if (!config || !serviceKey) {
+		throw new Error(
+			'Missing PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY. Set them in Vercel → Project Settings → Environment Variables.'
+		);
+	}
+
+	return createClient(config.url, serviceKey, {
 		auth: {
 			autoRefreshToken: false,
 			persistSession: false

@@ -1,6 +1,13 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, error } from '@sveltejs/kit';
 
 export const load = async ({ locals }) => {
+	if (!locals.supabase) {
+		error(
+			503,
+			'Supabase is not configured. Add PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY in Vercel environment variables.'
+		);
+	}
+
 	if (!locals.session) {
 		redirect(303, '/login');
 	}
@@ -19,6 +26,6 @@ export const load = async ({ locals }) => {
 	return {
 		user: locals.session.user,
 		profile: profile ?? {},
-		gyms: gyms ?? [],
+		gyms: gyms ?? []
 	};
 };
