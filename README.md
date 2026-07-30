@@ -62,3 +62,4 @@ Copy values from your local `.env` (or from Supabase → Project Settings → AP
 - Multi-gym support — one owner account, multiple locations
 - Role-based access — Owner, Manager, Instructor, Staff, Member
 - Pakistan-specific — CNIC format, PKR currency, en-PK locale
+<!-- redeploy trigger 2026-07-30T11:33:07Z -->
