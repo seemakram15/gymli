@@ -2,12 +2,21 @@
 	import { enhance } from '$app/forms';
 	import { Phone, MapPin, Shield, CreditCard, Calendar, Plus, Edit2, CheckCircle } from 'lucide-svelte';
 	import { formatPKR, formatDate, formatDateTime, initials, paymentStatusBadge, memberStatusBadge, formatCNIC } from '$lib/utils/format.js';
+	import Modal from '$lib/components/Modal.svelte';
+	import Select from '$lib/components/Select.svelte';
+	import DatePicker from '$lib/components/DatePicker.svelte';
 
 	let { data, form } = $props();
 	let tab = $state('profile');
 	let editMode = $state(false);
 	let paymentModalOpen = $state(false);
 	let loading = $state(false);
+	let gender = $state(data.profile.gender ?? '');
+	let status = $state(data.profile.status ?? 'active');
+	let dob = $state(data.profile.date_of_birth ?? '');
+	let paySubId = $state('');
+	let payMethod = $state('cash');
+	let payGymId = $state('');
 
 	const tabs = [
 		{ id: 'profile',       label: 'Profile' },
@@ -16,6 +25,42 @@
 		{ id: 'attendance',    label: 'Attendance' },
 		{ id: 'documents',     label: 'Documents' },
 	];
+
+	const genderOptions = [
+		{ value: '', label: 'Select' },
+		{ value: 'male', label: 'Male' },
+		{ value: 'female', label: 'Female' },
+		{ value: 'other', label: 'Other' }
+	];
+
+	const statusOptions = [
+		{ value: 'active', label: 'Active' },
+		{ value: 'inactive', label: 'Inactive' },
+		{ value: 'suspended', label: 'Suspended' },
+		{ value: 'frozen', label: 'Frozen' }
+	];
+
+	const methodOptions = [
+		{ value: 'cash', label: 'Cash' },
+		{ value: 'card', label: 'Card' },
+		{ value: 'bank_transfer', label: 'Bank Transfer' },
+		{ value: 'online', label: 'Online' }
+	];
+
+	const subOptions = $derived([
+		{ value: '', label: 'General payment (no subscription)' },
+		...data.subscriptions
+			.filter((s) => s.status === 'active')
+			.map((s) => ({
+				value: s.id,
+				label: `${s.packages?.name} — Balance: ${formatPKR(s.amount_due - s.amount_paid)}`
+			}))
+	]);
+
+	const gymOptions = $derived([
+		{ value: '', label: 'Select gym' },
+		...data.gyms.map((g) => ({ value: g.id, label: g.name }))
+	]);
 </script>
 
 <svelte:head><title>{data.profile.full_name ?? 'Member'} — GymLi</title></svelte:head>
@@ -97,12 +142,12 @@
 	{/if}
 
 	<!-- Tabs -->
-	<div class="flex gap-1 border-b border-gray-200 overflow-x-auto">
+	<div class="flex gap-1 border-b border-ink-200 overflow-x-auto">
 		{#each tabs as t}
 			<button
 				onclick={() => tab = t.id}
 				class="px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors
-					{tab === t.id ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
+					{tab === t.id ? 'border-ink-900 text-ink-900' : 'border-transparent text-ink-500 hover:text-ink-800'}"
 			>{t.label}</button>
 		{/each}
 	</div>
@@ -140,31 +185,23 @@
 				<div>
 					<label class="label">Gender</label>
 					{#if editMode}
-						<select name="gender" class="input">
-							<option value="">Select</option>
-							<option value="male" selected={data.profile.gender === 'male'}>Male</option>
-							<option value="female" selected={data.profile.gender === 'female'}>Female</option>
-						</select>
+						<Select name="gender" options={genderOptions} bind:value={gender} />
 					{:else}
-						<p class="text-gray-900 capitalize">{data.profile.gender ?? '—'}</p>
+						<p class="text-ink-900 capitalize">{data.profile.gender ?? '—'}</p>
 					{/if}
 				</div>
 				<div>
 					<label class="label">Date of Birth</label>
 					{#if editMode}
-						<input name="date_of_birth" type="date" class="input" value={data.profile.date_of_birth ?? ''} />
+						<DatePicker name="date_of_birth" bind:value={dob} placeholder="Date of birth" />
 					{:else}
-						<p class="text-gray-900">{formatDate(data.profile.date_of_birth)}</p>
+						<p class="text-ink-900">{formatDate(data.profile.date_of_birth)}</p>
 					{/if}
 				</div>
 				<div>
 					<label class="label">Status</label>
 					{#if editMode}
-						<select name="status" class="input">
-							{#each ['active','inactive','suspended','frozen'] as s}
-								<option value={s} selected={data.profile.status === s}>{s}</option>
-							{/each}
-						</select>
+						<Select name="status" options={statusOptions} bind:value={status} />
 					{:else}
 						<span class="{memberStatusBadge(data.profile.status ?? 'active')}">{data.profile.status ?? 'active'}</span>
 					{/if}
@@ -319,53 +356,33 @@
 </div>
 
 <!-- Record Payment Modal -->
-{#if paymentModalOpen}
-	<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-		<div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-			<h3 class="text-lg font-bold text-gray-900 mb-4">Record Payment</h3>
-			<form method="POST" action="?/addPayment" use:enhance={() => {
-				return async ({ update }) => { await update(); paymentModalOpen = false; };
-			}} class="space-y-4">
-				<div>
-					<label class="label">Subscription</label>
-					<select name="subscription_id" class="input">
-						<option value="">General payment (no subscription)</option>
-						{#each data.subscriptions.filter(s => s.status === 'active') as s}
-							<option value={s.id}>{s.packages?.name} — Balance: {formatPKR(s.amount_due - s.amount_paid)}</option>
-						{/each}
-					</select>
-				</div>
-				<div>
-					<label class="label">Amount (PKR) *</label>
-					<input name="amount" type="number" class="input" placeholder="5000" required min="1" />
-				</div>
-				<div>
-					<label class="label">Payment Method *</label>
-					<select name="method" class="input" required>
-						<option value="cash">Cash</option>
-						<option value="card">Card</option>
-						<option value="bank_transfer">Bank Transfer</option>
-						<option value="online">Online</option>
-					</select>
-				</div>
-				<div>
-					<label class="label">Notes</label>
-					<input name="notes" class="input" placeholder="Optional reference or notes" />
-				</div>
-				<div>
-					<label class="label">Gym</label>
-					<select name="gym_id" class="input">
-						<option value="">Select gym</option>
-						{#each data.gyms as g}
-							<option value={g.id}>{g.name}</option>
-						{/each}
-					</select>
-				</div>
-				<div class="flex gap-3 pt-2">
-					<button type="button" onclick={() => paymentModalOpen = false} class="btn-secondary btn flex-1">Cancel</button>
-					<button type="submit" class="btn-primary btn flex-1">Record Payment</button>
-				</div>
-			</form>
+<Modal open={paymentModalOpen} title="Record Payment" onclose={() => (paymentModalOpen = false)}>
+	<form method="POST" action="?/addPayment" use:enhance={() => {
+		return async ({ update }) => { await update(); paymentModalOpen = false; };
+	}} class="space-y-4">
+		<div>
+			<label class="label">Subscription</label>
+			<Select name="subscription_id" options={subOptions} bind:value={paySubId} />
 		</div>
-	</div>
-{/if}
+		<div>
+			<label class="label">Amount (PKR) *</label>
+			<input name="amount" type="number" class="input" placeholder="5000" required min="1" />
+		</div>
+		<div>
+			<label class="label">Payment Method *</label>
+			<Select name="method" options={methodOptions} bind:value={payMethod} required />
+		</div>
+		<div>
+			<label class="label">Notes</label>
+			<input name="notes" class="input" placeholder="Optional reference or notes" />
+		</div>
+		<div>
+			<label class="label">Gym</label>
+			<Select name="gym_id" options={gymOptions} bind:value={payGymId} />
+		</div>
+		<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
+			<button type="button" onclick={() => paymentModalOpen = false} class="btn btn-secondary flex-1">Cancel</button>
+			<button type="submit" class="btn btn-primary flex-1">Record Payment</button>
+		</div>
+	</form>
+</Modal>

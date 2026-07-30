@@ -42,6 +42,6 @@ export const actions = {
 			});
 		}
 
-		return { success: true };
+		redirect(303, `/verify-otp?email=${encodeURIComponent(email)}&type=signup`);
 	}
 };

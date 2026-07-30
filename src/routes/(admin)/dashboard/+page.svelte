@@ -11,16 +11,16 @@
 			value: stats.totalMembers,
 			sub: `${stats.activeSubscriptions} active subscriptions`,
 			icon: Users,
-			grad: 'from-violet-500 to-purple-600',
-			light: 'bg-violet-50 text-violet-600'
+			grad: 'from-ink-800 to-ink-950',
+			light: 'bg-ink-50 text-ink-700'
 		},
 		{
 			label: 'Collected Today',
 			value: formatPKR(stats.collectionToday),
 			sub: `This month: ${formatPKR(stats.collectionMonth)}`,
 			icon: TrendingUp,
-			grad: 'from-emerald-500 to-teal-500',
-			light: 'bg-emerald-50 text-emerald-600'
+			grad: 'from-volt-500 to-volt-700',
+			light: 'bg-volt-50 text-volt-800'
 		},
 		{
 			label: 'Overdue Members',
@@ -36,8 +36,8 @@
 			value: formatPKR(stats.collectionTotal),
 			sub: `This week: ${formatPKR(stats.collectionWeek)}`,
 			icon: DollarSign,
-			grad: 'from-blue-500 to-indigo-600',
-			light: 'bg-blue-50 text-blue-600'
+			grad: 'from-ink-700 to-ink-900',
+			light: 'bg-ink-50 text-ink-700'
 		}
 	]);
 
@@ -84,19 +84,18 @@
 	</div>
 
 	<!-- Collection Summary Banner -->
-	<div class="relative rounded-2xl p-6 overflow-hidden" style="background:linear-gradient(135deg,#1e1b4b,#312e81,#4338ca);">
-		<div class="absolute -right-10 -top-10 w-48 h-48 rounded-full opacity-10" style="background:radial-gradient(circle,#818cf8,transparent)"></div>
-		<div class="absolute -left-10 -bottom-10 w-40 h-40 rounded-full opacity-10" style="background:radial-gradient(circle,#c084fc,transparent)"></div>
+	<div class="relative rounded-2xl p-6 overflow-hidden bg-ink-950">
+		<div class="absolute inset-0 opacity-40" style="background: radial-gradient(circle at 85% 20%, rgba(180,239,42,0.25), transparent 40%);"></div>
 		<div class="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 			<div>
 				<div class="text-white/60 text-sm font-medium mb-1 flex items-center gap-2"><Activity size={14}/> Revenue Overview</div>
-				<div class="text-4xl font-black text-white">{formatPKR(stats.collectionTotal)}</div>
+				<div class="font-display text-4xl font-extrabold text-white">{formatPKR(stats.collectionTotal)}</div>
 				<div class="text-white/50 text-sm mt-1">Total collected all time</div>
 			</div>
 			<div class="flex gap-6">
 				{#each [['Today', stats.collectionToday],['This Week', stats.collectionWeek],['This Month', stats.collectionMonth]] as [l, v]}
 					<div class="text-center">
-						<div class="text-lg font-bold text-white">{formatPKR(v)}</div>
+						<div class="text-lg font-bold text-volt-300">{formatPKR(v)}</div>
 						<div class="text-white/40 text-xs mt-0.5">{l}</div>
 					</div>
 				{/each}

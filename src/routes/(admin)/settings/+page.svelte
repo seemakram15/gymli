@@ -11,10 +11,10 @@
 <div class="p-6 max-w-4xl mx-auto space-y-6">
 	<h1 class="page-title">Settings</h1>
 
-	<div class="flex gap-1 border-b border-gray-200">
+	<div class="flex gap-1 border-b border-ink-200 overflow-x-auto">
 		{#each [['profile','Account'],['reminders','Reminders'],['cycles','Billing Cycles'],['services','Services']] as [id, label]}
-			<button onclick={() => tab = id} class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors
-				{tab === id ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700'}">
+			<button onclick={() => tab = id} class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+				{tab === id ? 'border-ink-900 text-ink-900' : 'border-transparent text-ink-500 hover:text-ink-800'}">
 				{label}
 			</button>
 		{/each}

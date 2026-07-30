@@ -2,11 +2,18 @@
 	import { enhance } from '$app/forms';
 	import { Upload, User, Phone, MapPin, Shield, FileText } from 'lucide-svelte';
 	import { formatCNIC } from '$lib/utils/format.js';
+	import Select from '$lib/components/Select.svelte';
+	import DatePicker from '$lib/components/DatePicker.svelte';
 
 	let { data, form } = $props();
 	let loading = $state(false);
 	let tab = $state('personal');
 	let cnicValue = $state('');
+	let gender = $state('');
+	let dob = $state('');
+	let gymId = $state('');
+	let packageId = $state('');
+	let startDate = $state(new Date().toISOString().split('T')[0]);
 
 	function onCnicInput(e) {
 		cnicValue = formatCNIC(e.target.value);
@@ -19,31 +26,50 @@
 		{ id: 'identity',   label: 'CNIC & Documents', icon: Shield },
 		{ id: 'membership', label: 'Membership Plan',  icon: FileText },
 	];
+
+	const genderOptions = [
+		{ value: '', label: 'Select gender' },
+		{ value: 'male', label: 'Male' },
+		{ value: 'female', label: 'Female' },
+		{ value: 'other', label: 'Other' }
+	];
+
+	const gymOptions = $derived([
+		{ value: '', label: 'Select gym' },
+		...data.gyms.map((g) => ({ value: g.id, label: `${g.name} — ${g.city}` }))
+	]);
+
+	const packageOptions = $derived([
+		{ value: '', label: 'No plan (enroll later)' },
+		...data.packages.map((p) => ({
+			value: p.id,
+			label: `${p.name} — PKR ${p.amount} / ${p.cycles?.name ?? 'custom'}`
+		}))
+	]);
 </script>
 
 <svelte:head><title>Add Member — GymLi</title></svelte:head>
 
-<div class="p-6 max-w-4xl mx-auto">
+<div class="p-4 sm:p-6 max-w-4xl mx-auto">
 	<div class="mb-6">
-		<a href="/members" class="text-sm text-gray-500 hover:text-gray-700">← Back to Members</a>
+		<a href="/members" class="text-sm text-ink-500 hover:text-ink-800">← Back to Members</a>
 		<h1 class="page-title mt-2">Add New Member</h1>
 	</div>
 
 	{#if form?.error}
-		<div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm mb-6">{form.error}</div>
+		<div class="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm mb-6">{form.error}</div>
 	{/if}
 
-	<!-- Tab navigation -->
-	<div class="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6 overflow-x-auto">
+	<div class="flex gap-1 bg-ink-100 p-1 rounded-xl mb-6 overflow-x-auto">
 		{#each tabs as t}
 			<button
 				type="button"
 				onclick={() => tab = t.id}
-				class="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all
-					{tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}"
+				class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all
+					{tab === t.id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-800'}"
 			>
 				<svelte:component this={t.icon} size={14} />
-				{t.label}
+				<span class="hidden sm:inline">{t.label}</span>
 			</button>
 		{/each}
 	</div>
@@ -74,16 +100,11 @@
 				</div>
 				<div>
 					<label class="label" for="gender">Gender</label>
-					<select id="gender" name="gender" class="input">
-						<option value="">Select gender</option>
-						<option value="male">Male</option>
-						<option value="female">Female</option>
-						<option value="other">Other</option>
-					</select>
+					<Select id="gender" name="gender" options={genderOptions} bind:value={gender} placeholder="Select gender" />
 				</div>
 				<div>
 					<label class="label" for="date_of_birth">Date of Birth</label>
-					<input id="date_of_birth" name="date_of_birth" type="date" class="input" />
+					<DatePicker id="date_of_birth" name="date_of_birth" bind:value={dob} placeholder="Pick date of birth" />
 				</div>
 				<div>
 					<label class="label" for="email">Email Address</label>
@@ -162,25 +183,15 @@
 			<div class="grid md:grid-cols-2 gap-4">
 				<div>
 					<label class="label" for="gym_id">Gym Location</label>
-					<select id="gym_id" name="gym_id" class="input">
-						<option value="">Select gym</option>
-						{#each data.gyms as g}
-							<option value={g.id}>{g.name} — {g.city}</option>
-						{/each}
-					</select>
+					<Select id="gym_id" name="gym_id" options={gymOptions} bind:value={gymId} placeholder="Select gym" />
 				</div>
 				<div>
 					<label class="label" for="package_id">Membership Plan</label>
-					<select id="package_id" name="package_id" class="input">
-						<option value="">No plan (enroll later)</option>
-						{#each data.packages as p}
-							<option value={p.id}>{p.name} — PKR {p.amount} / {p.cycles?.name ?? 'custom'}</option>
-						{/each}
-					</select>
+					<Select id="package_id" name="package_id" options={packageOptions} bind:value={packageId} placeholder="No plan (enroll later)" />
 				</div>
 				<div>
 					<label class="label" for="start_date">Membership Start Date</label>
-					<input id="start_date" name="start_date" type="date" class="input" value={new Date().toISOString().split('T')[0]} />
+					<DatePicker id="start_date" name="start_date" bind:value={startDate} placeholder="Start date" />
 				</div>
 				<div>
 					<label class="label" for="amount_due">Fee Amount (PKR)</label>

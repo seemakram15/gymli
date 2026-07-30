@@ -1,320 +1,369 @@
 <script>
 	import {
-		Users, DollarSign, Bell, BarChart2, Shield, Globe,
-		CheckCircle, ArrowRight, Dumbbell, Zap, Star,
-		TrendingUp, Menu, X, ChevronDown
+		Users, DollarSign, Bell, BarChart2, Shield, Building2,
+		Check, ArrowRight, Dumbbell, Menu, X, IdCard, Wallet, MapPinned
 	} from 'lucide-svelte';
 
-	const features = [
-		{ icon: Users,      grad: 'from-violet-500 to-purple-600', title: 'Member Enrollment',  desc: 'Full profiles with CNIC images, photos, phone, address. Enroll a new member in under 2 minutes.' },
-		{ icon: DollarSign, grad: 'from-emerald-500 to-teal-600',  title: 'Fee Collection',      desc: 'Cash, card, bank transfer. Auto-track outstanding balances and full PKR payment history.' },
-		{ icon: Bell,       grad: 'from-orange-500 to-red-500',    title: 'Smart Reminders',     desc: 'Automated due-soon, due-today, and overdue escalation emails — zero manual follow-up.' },
-		{ icon: BarChart2,  grad: 'from-blue-500 to-cyan-500',     title: 'Owner Dashboard',     desc: 'Daily, weekly, monthly collections. Overdue members. Everything at a glance.' },
-		{ icon: Globe,      grad: 'from-pink-500 to-rose-600',     title: 'Multi-Gym Support',   desc: 'One account, multiple locations. Consolidated or per-branch view.' },
-		{ icon: Shield,     grad: 'from-indigo-500 to-brand-600',  title: 'Role-Based Access',   desc: 'Owner, Manager, Instructor, Staff roles. Financial data stays protected.' }
+	const services = [
+		{
+			title: 'Member Enrollment',
+			desc: 'Capture CNIC, photos, contacts, and medical notes — enroll a member in under two minutes.',
+			image: '/images/service-enrollment.jpg',
+			icon: Users
+		},
+		{
+			title: 'Fee Collection',
+			desc: 'Record cash, card, or bank transfer in PKR with a clear history of every payment.',
+			image: '/images/service-payment.jpg',
+			icon: DollarSign
+		},
+		{
+			title: 'Smart Reminders',
+			desc: 'Due-soon, due-today, and overdue alerts — automatic follow-ups so you stop chasing fees.',
+			image: '/images/service-notify.jpg',
+			icon: Bell
+		},
+		{
+			title: 'Owner Dashboard',
+			desc: 'Daily, weekly, and monthly collections with overdue members visible at a glance.',
+			image: '/images/service-analytics.jpg',
+			icon: BarChart2
+		},
+		{
+			title: 'Multi-Gym Control',
+			desc: 'Run every branch from one account — switch locations without losing the plot.',
+			image: '/images/service-locations.jpg',
+			icon: Building2
+		},
+		{
+			title: 'Staff & Roles',
+			desc: 'Owner, manager, instructor, and staff access — financial data stays protected.',
+			image: '/images/service-team.jpg',
+			icon: Shield
+		}
+	];
+
+	const highlights = [
+		{
+			icon: IdCard,
+			title: 'CNIC Enrollment',
+			desc: 'Pakistani ID format with front & back uploads on every member profile.'
+		},
+		{
+			icon: Wallet,
+			title: 'Fee Recovery',
+			desc: 'Track dues, collect in PKR, and see who paid — cash, card, or transfer.'
+		},
+		{
+			icon: MapPinned,
+			title: 'Branch Control',
+			desc: 'Manage multiple gym floors from one owner dashboard.'
+		}
 	];
 
 	const plans = [
-		{ name: 'Starter',    emoji: '🌱', price: 'Free',     period: null,     popular: false, features: ['1 Gym Location', 'Up to 50 Members', 'Basic Dashboard', 'Fee Tracking', 'Email Reminders'] },
-		{ name: 'Pro',        emoji: '⚡', price: '₨ 2,999', period: '/month',  popular: true,  features: ['3 Gym Locations', 'Unlimited Members', 'Full Dashboard', 'Automated Reminders', 'CNIC Image Upload', 'Payment Reports', 'SMS Reminders', 'Priority Support'] },
-		{ name: 'Enterprise', emoji: '🏢', price: 'Custom',   period: null,     popular: false, features: ['Unlimited Locations', 'Unlimited Members', 'Custom Branding', 'API Access', 'Dedicated Support', 'Data Export', 'SLA Guarantee'] }
-	];
-
-	const statsData = [
-		{ val: '500+',   label: 'Gyms Managed',      icon: Dumbbell,   color: 'text-violet-500' },
-		{ val: '50K+',   label: 'Members Enrolled',   icon: Users,      color: 'text-emerald-500' },
-		{ val: '₨100M+', label: 'Fees Collected',     icon: DollarSign, color: 'text-amber-500' },
-		{ val: '99.9%',  label: 'Uptime',             icon: TrendingUp, color: 'text-blue-500' }
+		{
+			name: 'Starter',
+			price: 'Free',
+			period: '',
+			blurb: 'For a single floor getting organised.',
+			features: ['1 gym location', 'Up to 50 members', 'Fee tracking', 'Email reminders', 'Basic dashboard'],
+			cta: 'Start free',
+			featured: false
+		},
+		{
+			name: 'Pro',
+			price: '₨ 2,999',
+			period: '/month',
+			blurb: 'For growing gyms that need the full loop.',
+			features: [
+				'3 gym locations',
+				'Unlimited members',
+				'Automated reminders',
+				'CNIC image upload',
+				'Payment reports',
+				'SMS reminders',
+				'Priority support'
+			],
+			cta: 'Go Pro',
+			featured: true
+		},
+		{
+			name: 'Enterprise',
+			price: 'Custom',
+			period: '',
+			blurb: 'For chains that need control at scale.',
+			features: [
+				'Unlimited locations',
+				'Custom branding',
+				'API access',
+				'Data export',
+				'Dedicated support',
+				'SLA guarantee'
+			],
+			cta: 'Talk to us',
+			featured: false
+		}
 	];
 
 	let mobileOpen = $state(false);
+	let scrolled = $state(false);
+
+	function onScroll() {
+		scrolled = window.scrollY > 24;
+	}
 </script>
 
+<svelte:window onscroll={onScroll} />
+
 <svelte:head>
-	<title>GymLi — Gym Management System for Pakistan</title>
+	<title>GymLi — Gym Management for Pakistan</title>
+	<meta name="description" content="Member enrollment, PKR fee collection, automated reminders, and multi-gym dashboards built for Pakistani gym owners." />
 </svelte:head>
 
 <!-- NAV -->
-<nav class="fixed top-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-xl border-b border-gray-100 shadow-sm">
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-		<div class="flex items-center justify-between h-16">
-			<a href="/" class="flex items-center gap-2.5 group">
-				<div class="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm transition-all group-hover:shadow-brand-500/40 group-hover:shadow-md" style="background: linear-gradient(135deg, #4f46e5, #7c3aed)">
-					<Dumbbell size={18} class="text-white" />
-				</div>
-				<span class="text-xl font-extrabold bg-clip-text text-transparent" style="background-image: linear-gradient(135deg, #4f46e5, #7c3aed); -webkit-background-clip: text;">GymLi</span>
+<nav class="landing-nav {scrolled ? 'scrolled' : ''}">
+	<div class="max-w-6xl mx-auto px-4 sm:px-6">
+		<div class="flex items-center justify-between h-14 sm:h-[4.25rem] gap-2">
+			<a href="/" class="flex items-center gap-2 group shrink-0">
+				<span class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center">
+					<Dumbbell size={18} />
+				</span>
+				<span class="font-display text-lg sm:text-xl font-extrabold text-white tracking-tight">GymLi</span>
 			</a>
-			<div class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-				<a href="#features" class="hover:text-brand-600 transition-colors">Features</a>
-				<a href="#pricing"  class="hover:text-brand-600 transition-colors">Pricing</a>
-				<a href="#contact"  class="hover:text-brand-600 transition-colors">Contact</a>
+
+			<div class="hidden md:flex items-center gap-8 text-sm font-medium text-white/70">
+				<a href="#services" class="hover:text-white transition-colors">Services</a>
+				<a href="#plans" class="hover:text-white transition-colors">Plans</a>
+				<a href="#contact" class="hover:text-white transition-colors">Contact</a>
 			</div>
-			<div class="hidden md:flex items-center gap-3">
-				<a href="/login"    class="btn btn-sm btn-ghost   text-gray-700">Sign In</a>
-				<a href="/register" class="btn btn-sm btn-primary">Get Started Free</a>
+
+			<!-- Always show CTAs alongside on mobile + desktop -->
+			<div class="flex items-center gap-2 shrink-0">
+				<a href="/login" class="btn btn-sm text-white/85 hover:text-white hover:bg-white/10 px-3 sm:px-4">Sign in</a>
+				<a href="/register" class="btn btn-sm btn-volt px-3 sm:px-4">Get started</a>
+				<button
+					type="button"
+					onclick={() => (mobileOpen = !mobileOpen)}
+					class="md:hidden p-2 rounded-lg text-white/80 hover:bg-white/10"
+					aria-label="Menu"
+				>
+					{#if mobileOpen}<X size={20} />{:else}<Menu size={20} />{/if}
+				</button>
 			</div>
-			<button onclick={() => mobileOpen = !mobileOpen} class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
-				{#if mobileOpen}<X size={22}/>{:else}<Menu size={22}/>{/if}
-			</button>
 		</div>
 	</div>
+
 	{#if mobileOpen}
-		<div class="md:hidden border-t border-gray-100 bg-white px-4 py-4 space-y-2">
-			<a href="#features" onclick={() => mobileOpen=false} class="block py-2 text-sm font-medium text-gray-700 hover:text-brand-600">Features</a>
-			<a href="#pricing"  onclick={() => mobileOpen=false} class="block py-2 text-sm font-medium text-gray-700 hover:text-brand-600">Pricing</a>
-			<a href="#contact"  onclick={() => mobileOpen=false} class="block py-2 text-sm font-medium text-gray-700 hover:text-brand-600">Contact</a>
-			<div class="flex gap-3 pt-2">
-				<a href="/login"    class="btn btn-secondary btn-sm flex-1 justify-center">Sign In</a>
-				<a href="/register" class="btn btn-primary  btn-sm flex-1 justify-center">Get Started</a>
+		<div class="md:hidden border-t border-white/10 bg-ink-950/95 backdrop-blur-xl px-4 py-3">
+			<div class="grid grid-cols-3 gap-2 text-center">
+				{#each [['Services', '#services'], ['Plans', '#plans'], ['Contact', '#contact']] as [label, href]}
+					<a
+						{href}
+						onclick={() => (mobileOpen = false)}
+						class="py-2.5 text-sm font-medium text-white/80 hover:text-white rounded-lg hover:bg-white/5"
+					>{label}</a>
+				{/each}
 			</div>
 		</div>
 	{/if}
 </nav>
 
-<!-- HERO -->
-<section class="relative min-h-screen flex items-center overflow-hidden pt-16" style="background: #0a0812;">
-	<!-- Orbs -->
-	<div class="anim-orb      absolute -top-40  -left-40  w-[700px] h-[700px] rounded-full opacity-25" style="background: radial-gradient(circle, #6366f1, transparent 65%)"></div>
-	<div class="anim-orb-slow absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full opacity-20" style="background: radial-gradient(circle, #8b5cf6, transparent 65%)"></div>
-	<div class="anim-orb      absolute top-1/2 right-1/4 w-[400px] h-[400px] rounded-full opacity-15"  style="background: radial-gradient(circle, #06b6d4, transparent 65%)"></div>
-	<!-- Grid -->
-	<div class="absolute inset-0 opacity-[0.04]" style="background-image: linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px);background-size:60px 60px;"></div>
-
-	<div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32 w-full">
-		<div class="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-			<!-- Left: copy -->
-			<div>
-				<div class="anim-fade-up inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium mb-8 border border-white/15 text-white/80" style="background: rgba(255,255,255,0.07)">
-					<span class="w-2 h-2 rounded-full bg-emerald-400" style="animation: pulse 2s infinite; box-shadow: 0 0 0 0 rgba(52,211,153,0.4);"></span>
-					Built for Pakistani Gyms · Free to Start
-				</div>
-
-				<h1 class="anim-fade-up anim-delay-1 text-5xl sm:text-6xl lg:text-[4.5rem] font-black leading-[1.05] text-white mb-6 tracking-tight">
-					Manage<br/>Your Gym.<br/>
-					<span style="background: linear-gradient(90deg,#818cf8,#c084fc,#67e8f9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Never Chase Fees</span><br/>
-					<span style="background: linear-gradient(90deg,#34d399,#06b6d4); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Again.</span>
-				</h1>
-
-				<p class="anim-fade-up anim-delay-2 text-lg text-white/55 mb-10 leading-relaxed max-w-xl">
-					Complete member enrollment with CNIC, fee collection in PKR, automated payment reminders, and a real-time owner dashboard — all in one place.
-				</p>
-
-				<div class="anim-fade-up anim-delay-3 flex flex-col sm:flex-row gap-4 mb-10">
-					<a href="/register" class="btn btn-lg group text-white font-bold" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 8px 32px rgba(99,102,241,0.4);">
-						Start Free Today <ArrowRight size={20} class="group-hover:translate-x-0.5 transition-transform"/>
-					</a>
-					<a href="/login" class="btn btn-lg text-white border border-white/20 hover:bg-white/10 backdrop-blur-sm">
-						Sign In to Dashboard
-					</a>
-				</div>
-
-				<div class="anim-fade-up anim-delay-4 flex flex-wrap gap-4 text-sm text-white/40">
-					{#each ['No credit card required','CNIC enrollment','PKR billing','Multi-gym support'] as item}
-						<span class="flex items-center gap-1.5">
-							<CheckCircle size={13} class="text-emerald-400 shrink-0"/>
-							{item}
-						</span>
-					{/each}
-				</div>
-			</div>
-
-			<!-- Right: floating dashboard preview -->
-			<div class="hidden lg:block mt-12 lg:mt-0 anim-fade-up anim-delay-5">
-				<div class="anim-float rounded-3xl p-6 border border-white/10 shadow-2xl" style="background:rgba(255,255,255,0.06);backdrop-filter:blur(24px);">
-					<div class="flex items-center gap-1.5 mb-5">
-						<div class="w-3 h-3 rounded-full bg-red-400/80"></div>
-						<div class="w-3 h-3 rounded-full bg-yellow-400/80"></div>
-						<div class="w-3 h-3 rounded-full bg-emerald-400/80"></div>
-						<span class="text-white/30 text-xs ml-3">GymLi · Dashboard</span>
-					</div>
-					<!-- Stats row -->
-					<div class="grid grid-cols-3 gap-2 mb-4">
-						{#each [['₨84,500','Month','emerald'],['127','Members','violet'],['3','Overdue','red']] as [v,l,c]}
-							<div class="rounded-xl p-3 text-center" style="background:rgba(255,255,255,0.07)">
-								<div class="text-base font-bold text-{c}-400">{v}</div>
-								<div class="text-[10px] text-white/40 mt-0.5">{l}</div>
-							</div>
-						{/each}
-					</div>
-					<!-- List items -->
-					<div class="space-y-2">
-						{#each [['Ali Raza','₨5,000','bg-violet-500','paid'],['Bilal Khan','₨3,500','bg-emerald-500','paid'],['Sara Malik','₨4,200','bg-amber-500','due'],['Usman T.','₨6,000','bg-blue-500','paid']] as [n,a,bg,s]}
-							<div class="flex items-center justify-between rounded-xl px-3 py-2.5" style="background:rgba(255,255,255,0.05)">
-								<div class="flex items-center gap-2.5">
-									<div class="w-7 h-7 rounded-full {bg} flex items-center justify-center text-xs font-bold text-white">{n[0]}</div>
-									<span class="text-white/70 text-sm">{n}</span>
-								</div>
-								<div class="flex items-center gap-2">
-									<span class="text-emerald-400 text-sm font-semibold">{a}</span>
-									<span class="text-[10px] px-2 py-0.5 rounded-full {s === 'paid' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}">{s}</span>
-								</div>
-							</div>
-						{/each}
-					</div>
-				</div>
-			</div>
-		</div>
+<!-- HERO: text centered in the middle -->
+<section class="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-ink-950">
+	<div class="absolute inset-0">
+		<img
+			src="/images/gym-hero.jpg"
+			alt=""
+			class="anim-kenburns absolute inset-0 w-full h-full object-cover"
+		/>
+		<div class="absolute inset-0 bg-ink-950/55"></div>
+		<div class="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/40 to-ink-950/50"></div>
 	</div>
 
-	<div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/30">
-		<span class="text-xs">Scroll to explore</span>
-		<ChevronDown size={16} class="anim-float"/>
-	</div>
-</section>
-
-<!-- STATS STRIP -->
-<section class="bg-white border-y border-gray-100">
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-		<div class="grid grid-cols-2 md:grid-cols-4 gap-6 divide-x divide-gray-100">
-			{#each statsData as s}
-				{@const Icon = s.icon}
-				<div class="flex flex-col items-center text-center px-4">
-					<Icon size={22} class="{s.color} mb-2"/>
-					<div class="text-3xl font-black text-gray-900">{s.val}</div>
-					<div class="text-sm text-gray-500 mt-1">{s.label}</div>
-				</div>
-			{/each}
+	<div class="relative w-full max-w-6xl mx-auto px-4 sm:px-6 py-24 sm:py-28 text-center">
+		<p class="anim-fade-up font-display text-volt-400 text-xs sm:text-sm font-bold tracking-[0.22em] uppercase mb-4">
+			GymLi
+		</p>
+		<h1 class="anim-fade-up anim-delay-1 font-display text-[2.55rem] leading-[1.05] sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight mx-auto max-w-3xl">
+			Run your gym.<br />Not your spreadsheets.
+		</h1>
+		<p class="anim-fade-up anim-delay-2 mt-5 sm:mt-6 text-base sm:text-xl text-white/65 max-w-xl mx-auto leading-relaxed">
+			Enrollment, PKR billing, and reminders built for Pakistani gyms — so you stop chasing payments by hand.
+		</p>
+		<!-- Buttons alongside on all breakpoints -->
+		<div class="anim-fade-up anim-delay-3 mt-8 flex flex-row items-center justify-center gap-2.5 sm:gap-3">
+			<a href="/register" class="btn btn-volt font-bold text-sm sm:text-base px-4 sm:px-6 py-2.5 sm:py-3">
+				Start free <ArrowRight size={18} />
+			</a>
+			<a href="/login" class="btn border border-white/25 text-white hover:bg-white/10 text-sm sm:text-base px-4 sm:px-6 py-2.5 sm:py-3">
+				Sign in
+			</a>
 		</div>
 	</div>
 </section>
 
-<!-- FEATURES -->
-<section id="features" class="py-24 bg-gray-50">
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-		<div class="text-center mb-16">
-			<div class="inline-flex items-center gap-1.5 bg-brand-50 text-brand-700 rounded-full px-4 py-1.5 text-sm font-semibold mb-5">
-				<Zap size={13}/> Everything in One Place
-			</div>
-			<h2 class="text-4xl sm:text-5xl font-black text-gray-900 mb-4">
-				Every Tool a <span style="background:linear-gradient(135deg,#4f46e5,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Gym Owner</span> Needs
+<!-- SERVICES -->
+<section id="services" class="relative bg-ink-50 py-16 sm:py-28">
+	<div class="max-w-6xl mx-auto px-4 sm:px-6">
+		<div class="max-w-2xl mb-10 sm:mb-16 text-center sm:text-left mx-auto sm:mx-0">
+			<p class="font-display text-volt-700 text-xs sm:text-sm font-bold tracking-[0.18em] uppercase mb-3">Services</p>
+			<h2 class="font-display text-3xl sm:text-5xl font-extrabold text-ink-900 tracking-tight leading-tight">
+				Everything a gym owner actually needs
 			</h2>
-			<p class="text-xl text-gray-500 max-w-2xl mx-auto">From first enrollment to monthly collection report — every workflow covered, zero manual follow-up.</p>
+			<p class="mt-3 sm:mt-4 text-ink-500 text-base sm:text-lg leading-relaxed">
+				From first enrollment to the monthly collection report — clean workflows, zero clutter.
+			</p>
 		</div>
-		<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-			{#each features as f}
-				{@const Icon = f.icon}
-				<div class="card p-7 group hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 cursor-default">
-					<div class="w-13 h-13 rounded-2xl bg-gradient-to-br {f.grad} flex items-center justify-center mb-5 shadow-md group-hover:scale-110 transition-transform duration-300" style="width:3.25rem;height:3.25rem;">
-						<Icon size={22} class="text-white"/>
+
+		<div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+			{#each services as s, i}
+				{@const Icon = s.icon}
+				<article
+					class="group relative overflow-hidden rounded-2xl bg-ink-900 min-h-[220px] sm:min-h-[320px] anim-fade-up"
+					style="animation-delay: {i * 0.06}s"
+				>
+					<img
+						src={s.image}
+						alt={s.title}
+						class="absolute inset-0 w-full h-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-105"
+					/>
+					<div class="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/65 to-ink-950/15"></div>
+					<div class="relative h-full flex flex-col justify-end p-4 sm:p-7">
+						<div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center mb-3 sm:mb-4">
+							<Icon size={18} />
+						</div>
+						<h3 class="font-display text-base sm:text-xl font-bold text-white mb-1.5 sm:mb-2">{s.title}</h3>
+						<p class="text-[11px] sm:text-sm text-white/70 leading-relaxed line-clamp-3 sm:line-clamp-none">{s.desc}</p>
 					</div>
-					<h3 class="text-lg font-bold text-gray-900 mb-2">{f.title}</h3>
-					<p class="text-gray-500 text-sm leading-relaxed">{f.desc}</p>
-				</div>
+				</article>
 			{/each}
 		</div>
 	</div>
 </section>
 
-<!-- PRICING -->
-<section id="pricing" class="py-24 bg-white">
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-		<div class="text-center mb-16">
-			<div class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 rounded-full px-4 py-1.5 text-sm font-semibold mb-5">
-				<Star size={13}/> Simple Pricing
+<!-- HIGHLIGHTS — meaningful service cards -->
+<section class="bg-ink-900 text-white py-12 sm:py-16">
+	<div class="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+		{#each highlights as h}
+			{@const Icon = h.icon}
+			<div class="rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6">
+				<div class="w-10 h-10 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center mb-4">
+					<Icon size={18} />
+				</div>
+				<h3 class="font-display text-xl font-bold text-white">{h.title}</h3>
+				<p class="mt-2 text-white/55 text-sm leading-relaxed">{h.desc}</p>
 			</div>
-			<h2 class="text-4xl sm:text-5xl font-black text-gray-900 mb-4">Transparent. No Surprises.</h2>
-			<p class="text-xl text-gray-500">No hidden fees. No private-equity pricing tricks.</p>
+		{/each}
+	</div>
+</section>
+
+<!-- PLANS -->
+<section id="plans" class="relative py-16 sm:py-28 overflow-hidden" style="background: linear-gradient(180deg, #f4f4f2 0%, #e8e8e4 100%);">
+	<div class="absolute inset-0 opacity-[0.35]" style="background-image: radial-gradient(circle at 20% 20%, rgba(180,239,42,0.25), transparent 40%), radial-gradient(circle at 80% 80%, rgba(10,10,8,0.06), transparent 45%);"></div>
+
+	<div class="relative max-w-6xl mx-auto px-4 sm:px-6">
+		<div class="text-center max-w-2xl mx-auto mb-10 sm:mb-16">
+			<p class="font-display text-volt-700 text-xs sm:text-sm font-bold tracking-[0.18em] uppercase mb-3">Plans</p>
+			<h2 class="font-display text-3xl sm:text-5xl font-extrabold text-ink-900 tracking-tight">
+				Simple pricing. Clear limits.
+			</h2>
+			<p class="mt-3 sm:mt-4 text-ink-500 text-base sm:text-lg">Start free. Upgrade when the floor fills up.</p>
 		</div>
 
-		<div class="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto" style="align-items: stretch;">
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 items-stretch">
 			{#each plans as plan}
-				<div class="relative card flex flex-col {plan.popular ? 'ring-2 ring-brand-500 shadow-2xl shadow-brand-500/10' : ''}">
-					{#if plan.popular}
-						<div class="absolute -top-4 inset-x-0 flex justify-center">
-							<div class="text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg whitespace-nowrap" style="background:linear-gradient(135deg,#4f46e5,#7c3aed)">
-								⚡ MOST POPULAR
-							</div>
+				<div
+					class="relative flex flex-col rounded-2xl p-5 sm:p-8 transition-transform duration-300 hover:-translate-y-1
+						{plan.featured
+							? 'bg-ink-900 text-white ring-2 ring-volt-400'
+							: 'bg-white text-ink-900 border border-ink-200'}"
+				>
+					{#if plan.featured}
+						<div class="absolute -top-3 left-5 sm:left-6 bg-volt-400 text-ink-950 text-xs font-bold tracking-wide uppercase px-3 py-1 rounded-md">
+							Most popular
 						</div>
 					{/if}
-					<!-- Header -->
-					<div class="p-7 pb-4 {plan.popular ? 'bg-gradient-to-br from-brand-50 to-violet-50 rounded-t-2xl' : ''}">
-						<div class="text-3xl mb-3">{plan.emoji}</div>
-						<div class="text-xl font-bold text-gray-900 mb-3">{plan.name}</div>
-						<div class="flex items-end gap-1">
-							<span class="text-4xl font-black text-gray-900">{plan.price}</span>
-							{#if plan.period}<span class="text-gray-400 text-sm pb-1">{plan.period}</span>{/if}
-						</div>
+
+					<div class="mb-5 sm:mb-6">
+						<h3 class="font-display text-xl sm:text-2xl font-bold">{plan.name}</h3>
+						<p class="mt-1 text-sm {plan.featured ? 'text-white/55' : 'text-ink-500'}">{plan.blurb}</p>
 					</div>
-					<div class="mx-6 border-t border-gray-100"></div>
-					<!-- Features -->
-					<div class="p-7 flex-1">
-						<ul class="space-y-3">
-							{#each plan.features as feat}
-								<li class="flex items-start gap-2.5 text-sm text-gray-600">
-									<CheckCircle size={16} class="{plan.popular ? 'text-brand-500' : 'text-emerald-500'} shrink-0 mt-0.5"/>
-									{feat}
-								</li>
-							{/each}
-						</ul>
+
+					<div class="mb-6 sm:mb-8 flex items-baseline gap-1">
+						<span class="font-display text-3xl sm:text-5xl font-extrabold tracking-tight">{plan.price}</span>
+						{#if plan.period}
+							<span class="text-sm {plan.featured ? 'text-white/45' : 'text-ink-400'}">{plan.period}</span>
+						{/if}
 					</div>
-					<!-- CTA -->
-					<div class="px-7 pb-7">
-						<a href="/register" class="btn {plan.popular ? 'btn-primary' : 'btn-secondary'} w-full justify-center">
-							Get Started {#if plan.popular}<ArrowRight size={16}/>{/if}
-						</a>
-					</div>
+
+					<ul class="space-y-2.5 sm:space-y-3 flex-1 mb-6 sm:mb-8">
+						{#each plan.features as feat}
+							<li class="flex items-start gap-2.5 text-sm {plan.featured ? 'text-white/75' : 'text-ink-600'}">
+								<span class="mt-0.5 w-5 h-5 rounded-md flex items-center justify-center shrink-0 {plan.featured ? 'bg-volt-400/20 text-volt-400' : 'bg-volt-100 text-volt-800'}">
+									<Check size={12} strokeWidth={3} />
+								</span>
+								{feat}
+							</li>
+						{/each}
+					</ul>
+
+					<a
+						href="/register"
+						class="btn w-full justify-center {plan.featured ? 'btn-volt' : 'btn-primary'}"
+					>
+						{plan.cta} <ArrowRight size={16} />
+					</a>
 				</div>
 			{/each}
 		</div>
 	</div>
 </section>
 
-<!-- CTA BANNER -->
-<section class="relative overflow-hidden py-24" style="background:linear-gradient(135deg,#1e1b4b,#312e81);">
-	<div class="anim-orb      absolute -left-32 top-1/2 -translate-y-1/2 w-96 h-96 rounded-full opacity-30" style="background:radial-gradient(circle,#6366f1,transparent 70%)"></div>
-	<div class="anim-orb-slow absolute -right-32 top-1/2 -translate-y-1/2 w-96 h-96 rounded-full opacity-30" style="background:radial-gradient(circle,#8b5cf6,transparent 70%)"></div>
-	<div class="relative max-w-3xl mx-auto px-4 sm:px-6 text-center">
-		<h2 class="text-4xl sm:text-5xl font-black text-white mb-4">
-			Ready to Transform<br/>
-			<span style="background:linear-gradient(90deg,#34d399,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Your Gym Operations?</span>
-		</h2>
-		<p class="text-xl text-white/60 mb-10">Join hundreds of gym owners across Pakistan who stopped chasing fees manually.</p>
-		<a href="/register" class="btn btn-lg font-extrabold" style="background:white;color:#4f46e5;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
-			Create Free Account <ArrowRight size={20}/>
-		</a>
-	</div>
-</section>
-
-<!-- FOOTER -->
-<footer id="contact" class="bg-gray-950 text-gray-500">
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-		<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-10">
-			<div class="sm:col-span-2 lg:col-span-1">
-				<div class="flex items-center gap-2.5 mb-4">
-					<div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#4f46e5,#7c3aed)">
-						<Dumbbell size={18} class="text-white"/>
-					</div>
-					<span class="text-white font-extrabold text-lg">GymLi</span>
-				</div>
-				<p class="text-sm leading-relaxed">Pakistan's complete gym management system.</p>
+<!-- FOOTER — side-by-side on mobile -->
+<footer id="contact" class="bg-ink-950 text-white/50">
+	<div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+		<div class="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-8 sm:gap-10 mb-10 sm:mb-12">
+			<div class="col-span-2 lg:col-span-1">
+				<a href="/" class="inline-flex items-center gap-2.5 mb-3 sm:mb-4">
+					<span class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center">
+						<Dumbbell size={16} />
+					</span>
+					<span class="font-display text-base sm:text-lg font-extrabold text-white">GymLi</span>
+				</a>
+				<p class="text-xs sm:text-sm leading-relaxed text-white/45 max-w-xs">
+					Pakistan’s gym management system — enrollment, fees, reminders, multi-location.
+				</p>
 			</div>
 			<div>
-				<h4 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Product</h4>
-				<ul class="space-y-2.5 text-sm">
-					{#each [['Features','#features'],['Pricing','#pricing'],['Sign In','/login'],['Get Started','/register']] as [l,h]}
-						<li><a href={h} class="hover:text-white transition-colors">{l}</a></li>
-					{/each}
+				<h4 class="font-display text-white text-xs sm:text-sm font-bold tracking-wide uppercase mb-3 sm:mb-4">Product</h4>
+				<ul class="space-y-2 text-xs sm:text-sm">
+					<li><a href="#services" class="hover:text-white transition-colors">Services</a></li>
+					<li><a href="#plans" class="hover:text-white transition-colors">Plans</a></li>
+					<li><a href="/login" class="hover:text-white transition-colors">Sign in</a></li>
+					<li><a href="/register" class="hover:text-white transition-colors">Get started</a></li>
 				</ul>
 			</div>
 			<div>
-				<h4 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">For Owners</h4>
-				<ul class="space-y-2.5 text-sm">
-					{#each ['Multi-Gym Setup','Member Enrollment','Fee Management','Reports & Analytics'] as l}
-						<li><a href="/register" class="hover:text-white transition-colors">{l}</a></li>
-					{/each}
+				<h4 class="font-display text-white text-xs sm:text-sm font-bold tracking-wide uppercase mb-3 sm:mb-4">For owners</h4>
+				<ul class="space-y-2 text-xs sm:text-sm">
+					<li><a href="/register" class="hover:text-white transition-colors">Multi-gym setup</a></li>
+					<li><a href="/register" class="hover:text-white transition-colors">Member enrollment</a></li>
+					<li><a href="/register" class="hover:text-white transition-colors">Fee management</a></li>
+					<li><a href="/register" class="hover:text-white transition-colors">Reports</a></li>
 				</ul>
 			</div>
-			<div>
-				<h4 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Contact</h4>
-				<ul class="space-y-2.5 text-sm">
-					<li>support@gymli.pk</li>
+			<div class="col-span-2 lg:col-span-1">
+				<h4 class="font-display text-white text-xs sm:text-sm font-bold tracking-wide uppercase mb-3 sm:mb-4">Contact</h4>
+				<ul class="space-y-2 text-xs sm:text-sm">
+					<li><a href="mailto:support@gymli.pk" class="hover:text-white transition-colors">support@gymli.pk</a></li>
 					<li>Lahore, Pakistan</li>
 				</ul>
 			</div>
 		</div>
-		<div class="border-t border-gray-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
-			<p>© {new Date().getFullYear()} GymLi. All rights reserved.</p>
-			<p class="flex items-center gap-1 text-gray-600">Made with <span class="text-red-500">♥</span> for Pakistani Gym Owners</p>
+		<div class="border-t border-white/10 pt-6 sm:pt-8 flex flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+			<p>© {new Date().getFullYear()} GymLi</p>
+			<p class="text-white/30 text-right">Built for Pakistani gym owners</p>
 		</div>
 	</div>
 </footer>
