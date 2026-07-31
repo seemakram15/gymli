@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { requireRole, requireGymAccess, scopeGymId } from '$lib/server/rbac.js';
+import { checkQuota, countGymsForOwner } from '$lib/server/plan.js';
 
 export const load = async ({ locals }) => {
 	requireRole(locals, ['superadmin', 'manager']);
@@ -20,6 +21,10 @@ export const load = async ({ locals }) => {
 export const actions = {
 	create: async ({ request, locals }) => {
 		requireRole(locals, ['superadmin']);
+
+		const quotaError = await checkQuota(locals, 'gyms', countGymsForOwner);
+		if (quotaError) return fail(403, { error: quotaError });
+
 		const data = await request.formData();
 		const { error } = await locals.supabase.from('gyms').insert({
 			owner_id: locals.user.id,

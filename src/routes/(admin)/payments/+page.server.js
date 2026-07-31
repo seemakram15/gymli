@@ -73,6 +73,12 @@ export const load = async ({ locals, url }) => {
 			week:  all.filter(p => p.paid_at >= weekStart).reduce((s, p) => s + Number(p.amount), 0),
 			month: all.filter(p => p.paid_at >= monthStart).reduce((s, p) => s + Number(p.amount), 0),
 			total: all.reduce((s, p) => s + Number(p.amount), 0),
+			count: all.length,
+			avg: all.length ? all.reduce((s, p) => s + Number(p.amount), 0) / all.length : 0,
+			byMethod: all.reduce((acc, p) => {
+				acc[p.method] = (acc[p.method] ?? 0) + Number(p.amount);
+				return acc;
+			}, {}),
 		},
 	};
 };

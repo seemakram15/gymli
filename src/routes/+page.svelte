@@ -65,44 +65,58 @@
 	const plans = [
 		{
 			name: 'Starter',
-			price: 'Free',
-			period: '',
+			price: '₨ 1,500',
+			period: '/month',
 			blurb: 'For a single floor getting organised.',
-			features: ['1 gym location', 'Up to 50 members', 'Fee tracking', 'Email reminders', 'Basic dashboard'],
-			cta: 'Start free',
+			features: [
+				'1 gym location',
+				'Up to 20 members',
+				'Up to 5 staff accounts',
+				'Member enrollment',
+				'Fee collection',
+				'Smart reminders',
+				'Owner dashboard',
+				'Staff & roles'
+			],
+			cta: 'Start with Starter',
+			href: '/register',
 			featured: false
 		},
 		{
 			name: 'Pro',
-			price: '₨ 2,999',
+			price: '₨ 4,000',
 			period: '/month',
 			blurb: 'For growing gyms that need the full loop.',
 			features: [
 				'3 gym locations',
 				'Unlimited members',
+				'Up to 10 staff accounts',
 				'Automated reminders',
 				'CNIC image upload',
 				'Payment reports',
-				'SMS reminders',
-				'Priority support'
+				'Priority support',
+				'Everything in Starter'
 			],
 			cta: 'Go Pro',
+			href: '/register',
 			featured: true
 		},
 		{
-			name: 'Enterprise',
+			name: 'Custom',
 			price: 'Custom',
 			period: '',
 			blurb: 'For chains that need control at scale.',
 			features: [
-				'Unlimited locations',
+				'Unlimited gym locations',
+				'Unlimited members & staff',
+				'All GymLi services, unlocked',
 				'Custom branding',
 				'API access',
 				'Data export',
-				'Dedicated support',
-				'SLA guarantee'
+				'Dedicated support'
 			],
 			cta: 'Talk to us',
+			href: '/contact',
 			featured: false
 		}
 	];
@@ -133,7 +147,7 @@
 			<div class="hidden md:flex items-center gap-8 text-sm font-medium text-white/70">
 				<a href="#services" class="hover:text-white transition-colors">Services</a>
 				<a href="#plans" class="hover:text-white transition-colors">Plans</a>
-				<a href="#contact" class="hover:text-white transition-colors">Contact</a>
+				<a href="/contact" class="hover:text-white transition-colors">Contact Us</a>
 			</div>
 
 			<!-- Always show CTAs alongside on mobile + desktop -->
@@ -155,7 +169,7 @@
 	{#if mobileOpen}
 		<div class="md:hidden border-t border-white/10 bg-ink-950/95 backdrop-blur-xl px-4 py-3">
 			<div class="grid grid-cols-3 gap-2 text-center">
-				{#each [['Services', '#services'], ['Plans', '#plans'], ['Contact', '#contact']] as [label, href]}
+				{#each [['Services', '#services'], ['Plans', '#plans'], ['Contact Us', '/contact']] as [label, href]}
 					<a
 						{href}
 						onclick={() => (mobileOpen = false)}
@@ -307,7 +321,7 @@
 					</ul>
 
 					<a
-						href="/register"
+						href={plan.href}
 						class="btn w-full justify-center {plan.featured ? 'btn-volt' : 'btn-primary'}"
 					>
 						{plan.cta} <ArrowRight size={16} />
@@ -351,7 +365,9 @@
 			<div class="col-span-2 lg:col-span-1">
 				<h4 class="font-display text-white text-xs sm:text-sm font-bold tracking-wide uppercase mb-3 sm:mb-4">Contact</h4>
 				<ul class="space-y-2 text-xs sm:text-sm">
-					<li><a href="mailto:support@gymli.pk" class="hover:text-white transition-colors">support@gymli.pk</a></li>
+					<li>Waseem Akram</li>
+					<li><a href="mailto:seemakram15@gmail.com" class="hover:text-white transition-colors">seemakram15@gmail.com</a></li>
+					<li><a href="/contact" class="hover:text-white transition-colors">Contact form →</a></li>
 					<li>Lahore, Pakistan</li>
 				</ul>
 			</div>

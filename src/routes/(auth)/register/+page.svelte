@@ -1,13 +1,17 @@
 <script>
 	import { enhance } from '$app/forms';
 	import {
-		Eye, EyeOff, User, Building2, Mail, Phone, MapPin, Lock,
+		Eye, EyeOff, User, Mail, Phone, MapPin, Lock,
 		ArrowRight, AlertCircle, CheckCircle
 	} from 'lucide-svelte';
 
 	let showPass = $state(false);
 	let loading = $state(false);
 	let { form } = $props();
+
+	let password = $state('');
+	let confirmPassword = $state('');
+	const passwordMismatch = $derived(confirmPassword.length > 0 && password !== confirmPassword);
 </script>
 
 <svelte:head><title>Create Account — GymLi</title></svelte:head>
@@ -40,20 +44,11 @@
 	}}
 	class="space-y-4"
 >
-	<div class="grid sm:grid-cols-2 gap-4">
-		<div>
-			<label class="label" for="full_name">Your name</label>
-			<div class="input-group">
-				<span class="ig-icon"><User size={15} /></span>
-				<input id="full_name" name="full_name" type="text" placeholder="Muhammad Ali" required value={form?.full_name ?? ''} />
-			</div>
-		</div>
-		<div>
-			<label class="label" for="gym_name">Gym name</label>
-			<div class="input-group">
-				<span class="ig-icon"><Building2 size={15} /></span>
-				<input id="gym_name" name="gym_name" type="text" placeholder="Power Zone Gym" required value={form?.gym_name ?? ''} />
-			</div>
+	<div>
+		<label class="label" for="full_name">Your name</label>
+		<div class="input-group">
+			<span class="ig-icon"><User size={15} /></span>
+			<input id="full_name" name="full_name" type="text" placeholder="Muhammad Ali" required value={form?.full_name ?? ''} />
 		</div>
 	</div>
 
@@ -82,30 +77,53 @@
 		</div>
 	</div>
 
-	<div>
-		<label class="label" for="password">Password</label>
-		<div class="input-group">
-			<span class="ig-icon"><Lock size={15} /></span>
-			<input
-				id="password"
-				name="password"
-				type={showPass ? 'text' : 'password'}
-				placeholder="Min 8 characters"
-				required
-				minlength="8"
-			/>
-			<button
-				type="button"
-				class="ig-action"
-				onclick={() => (showPass = !showPass)}
-				aria-label={showPass ? 'Hide password' : 'Show password'}
-			>
-				{#if showPass}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
-			</button>
+	<div class="grid sm:grid-cols-2 gap-4">
+		<div>
+			<label class="label" for="password">Password</label>
+			<div class="input-group">
+				<span class="ig-icon"><Lock size={15} /></span>
+				<input
+					id="password"
+					name="password"
+					type={showPass ? 'text' : 'password'}
+					placeholder="Min 8 characters"
+					required
+					minlength="8"
+					autocomplete="new-password"
+					bind:value={password}
+				/>
+				<button
+					type="button"
+					class="ig-action"
+					onclick={() => (showPass = !showPass)}
+					aria-label={showPass ? 'Hide password' : 'Show password'}
+				>
+					{#if showPass}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
+				</button>
+			</div>
+		</div>
+		<div>
+			<label class="label" for="confirm_password">Confirm password</label>
+			<div class="input-group">
+				<span class="ig-icon"><Lock size={15} /></span>
+				<input
+					id="confirm_password"
+					name="confirm_password"
+					type={showPass ? 'text' : 'password'}
+					placeholder="Re-enter password"
+					required
+					minlength="8"
+					autocomplete="new-password"
+					bind:value={confirmPassword}
+				/>
+			</div>
 		</div>
 	</div>
+	{#if passwordMismatch}
+		<p class="text-xs text-red-600 -mt-2">Passwords do not match.</p>
+	{/if}
 
-	<button type="submit" disabled={loading} class="btn btn-primary w-full justify-center py-3 text-base mt-1">
+	<button type="submit" disabled={loading || passwordMismatch} class="btn btn-primary w-full justify-center py-3 text-base mt-1">
 		{#if loading}
 			<span class="w-4 h-4 border-2 border-white/30 border-t-volt-300 rounded-full animate-spin"></span>
 			Creating account…

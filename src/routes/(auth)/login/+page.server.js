@@ -29,6 +29,8 @@ export const actions = {
 			.eq('id', signInData.user.id)
 			.single();
 
-		redirect(303, profile?.role === 'member' ? '/my-checkin' : '/dashboard');
+		if (profile?.role === 'member') redirect(303, '/my-checkin');
+		if (profile?.role === 'service_provider') redirect(303, '/provider');
+		redirect(303, '/dashboard');
 	}
 };

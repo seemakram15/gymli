@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Bell, User, RefreshCw, Plus, Pencil, Trash2, Camera, Mail, Lock } from 'lucide-svelte';
+	import { Bell, RefreshCw, Plus, Pencil, Trash2, Camera, ShieldAlert, Sparkles, ArrowUpRight } from 'lucide-svelte';
 	import { initials } from '$lib/utils/format.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -22,11 +22,55 @@
 
 	const allTabs = [
 		['profile', 'Account', true],
+		['plan', 'Plan & Usage', isSuperadmin],
 		['reminders', 'Reminders', isSuperadmin],
 		['cycles', 'Billing Cycles', canManagePlans],
 		['services', 'Services', canManagePlans],
 	];
 	const tabs = $derived(allTabs.filter(([, , visible]) => visible));
+
+	const planQuotaLabels = { gyms: 'Gym locations', members: 'Members', staff: 'Staff accounts' };
+	const planQuota = $derived.by(() => {
+		const info = data.planInfo;
+		if (!info) return [];
+		return Object.entries(planQuotaLabels).map(([key, label]) => ({
+			key,
+			label,
+			used: info.usage[key],
+			limit: info.limits[key],
+		}));
+	});
+
+	let pendingEmail = $state('');
+	let otpModalOpen = $state(false);
+	let otpDigits = $state(['', '', '', '', '', '']);
+	let otpInputs = $state([]);
+	let otpLoading = $state(false);
+	let resendLoading = $state(false);
+	const otpToken = $derived(otpDigits.join(''));
+	const otpFilled = $derived(otpToken.length === 6);
+
+	function onOtpInput(i, e) {
+		const val = e.target.value.replace(/\D/g, '').slice(-1);
+		otpDigits[i] = val;
+		if (val && i < 5) otpInputs[i + 1]?.focus();
+	}
+	function onOtpKeydown(i, e) {
+		if (e.key === 'Backspace' && !otpDigits[i] && i > 0) otpInputs[i - 1]?.focus();
+	}
+	function onOtpPaste(e) {
+		const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+		if (pasted.length === 6) { otpDigits = pasted.split(''); otpInputs[5]?.focus(); }
+		e.preventDefault();
+	}
+	function closeOtpModal() {
+		otpModalOpen = false;
+		otpDigits = ['', '', '', '', '', ''];
+	}
+
+	let deleteAccountOpen = $state(false);
+	let deleteConfirmText = $state('');
+	let deleteAccountLoading = $state(false);
 
 	let editingCycle = $state(null);
 	let editingService = $state(null);
@@ -64,54 +108,119 @@
 
 	<!-- Profile -->
 	{#if tab === 'profile'}
-		<div class="card card-body">
-			<h3 class="font-semibold text-ink-900 mb-4 flex items-center gap-2"><User size={16} /> Account Information</h3>
-			{#if form?.profileSuccess}<div class="bg-green-50 text-green-700 rounded-lg px-4 py-2 text-sm mb-4">Profile updated!</div>{/if}
-			{#if form?.profileError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{form.profileError}</div>{/if}
-			<form method="POST" action="?/updateProfile" enctype="multipart/form-data" use:enhance class="space-y-4">
-				<div class="flex justify-center">
-					<label class="relative cursor-pointer group">
-						{#if avatarPreview}
-							<img src={avatarPreview} alt="Preview" class="w-24 h-24 rounded-full object-cover ring-4 ring-ink-100" />
-						{:else}
-							<div class="w-24 h-24 rounded-full bg-ink-900 text-volt-300 ring-4 ring-ink-100 flex items-center justify-center font-bold text-2xl">
-								{initials(data.profile.full_name)}
+		<div class="card overflow-hidden">
+			<form
+				method="POST"
+				action="?/updateAccount"
+				enctype="multipart/form-data"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						await update();
+						if (result.type === 'success' && result.data?.emailChangeRequested) {
+							pendingEmail = result.data.pendingEmail;
+							otpDigits = ['', '', '', '', '', ''];
+							otpModalOpen = true;
+						}
+					};
+				}}
+			>
+				<div class="p-6 sm:p-8 space-y-5">
+					{#if form?.profileSuccess}<div class="bg-green-50 text-green-700 rounded-lg px-4 py-2 text-sm">Account updated!</div>{/if}
+					{#if form?.profileError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm">{form.profileError}</div>{/if}
+					{#if form?.emailError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm">{form.emailError}</div>{/if}
+					{#if form?.passwordError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm">{form.passwordError}</div>{/if}
+
+					<!-- Photo alongside Name + Phone -->
+					<div class="flex flex-col sm:flex-row gap-5">
+						<label class="relative cursor-pointer group shrink-0 self-center sm:self-start">
+							{#if avatarPreview}
+								<img src={avatarPreview} alt="Preview" class="w-24 h-24 rounded-full object-cover ring-4 ring-ink-100" />
+							{:else}
+								<div class="w-24 h-24 rounded-full bg-ink-900 text-volt-300 ring-4 ring-ink-100 flex items-center justify-center font-bold text-2xl">
+									{initials(data.profile.full_name)}
+								</div>
+							{/if}
+							<span class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-ink-900 text-volt-300 flex items-center justify-center ring-2 ring-white group-hover:bg-ink-700 transition-colors">
+								<Camera size={14} />
+							</span>
+							<input name="avatar" type="file" accept="image/*" class="sr-only" onchange={onAvatarChange} />
+						</label>
+						<div class="flex-1 grid sm:grid-cols-2 gap-4">
+							<div><label class="label">Full Name</label><input name="full_name" class="input" placeholder="Full name" value={data.profile.full_name ?? ''} /></div>
+							<div><label class="label">Phone Number</label><input name="phone_number" type="tel" class="input" placeholder="+92 300 1234567" value={data.profile.phone_number ?? ''} /></div>
+						</div>
+					</div>
+
+					<div class="grid md:grid-cols-2 gap-4">
+						<div><label class="label">City</label><input name="city" class="input" placeholder="Lahore" value={data.profile.city ?? ''} /></div>
+						<div><label class="label">Address</label><input name="address" class="input" placeholder="Street, area" value={data.profile.address ?? ''} /></div>
+						<div class="md:col-span-2"><label class="label">Email</label><input name="email" type="email" class="input" required value={data.email} /></div>
+						<div><label class="label">New Password</label><input name="password" type="password" class="input" minlength="8" autocomplete="new-password" placeholder="Leave blank to keep current" /></div>
+						<div><label class="label">Confirm Password</label><input name="confirm" type="password" class="input" minlength="8" autocomplete="new-password" placeholder="Re-enter new password" /></div>
+					</div>
+					<p class="text-xs text-ink-400 -mt-3">Changing your email sends a verification code to the new address before it takes effect.</p>
+
+					<button type="submit" class="btn-primary btn">Update</button>
+				</div>
+			</form>
+		</div>
+
+		<!-- Danger Zone -->
+		<div class="card border-red-200">
+			<div class="p-6 sm:p-8">
+				<div class="flex items-center gap-2 text-red-700 font-semibold text-sm mb-1">
+					<ShieldAlert size={15} /> Danger Zone
+				</div>
+				<p class="text-sm text-ink-500 mb-4">Permanently delete your account and login access. This cannot be undone.</p>
+				<button type="button" onclick={() => { deleteConfirmText = ''; deleteAccountOpen = true; }} class="btn btn-danger">
+					<Trash2 size={14} /> Delete Account
+				</button>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Plan & Usage -->
+	{#if tab === 'plan' && isSuperadmin && data.planInfo}
+		<div class="card overflow-hidden">
+			<div class="p-6 sm:p-8 border-b border-ink-100 flex items-center justify-between flex-wrap gap-3">
+				<div>
+					<div class="flex items-center gap-2 text-ink-900 font-semibold">
+						<Sparkles size={16} class="text-volt-600" />
+						You're on the <span class="capitalize">{data.planInfo.limits.label}</span> plan
+					</div>
+					<p class="text-sm text-ink-500 mt-1">Usage across all gym locations on this account.</p>
+				</div>
+				<a href="/contact" class="btn btn-secondary btn-sm gap-1.5">
+					Upgrade plan <ArrowUpRight size={14} />
+				</a>
+			</div>
+
+			<div class="p-6 sm:p-8 space-y-6">
+				{#each planQuota as { label, used, limit }}
+					{@const unlimited = !Number.isFinite(limit)}
+					{@const pct = unlimited ? 0 : Math.min(100, (used / limit) * 100)}
+					{@const atLimit = !unlimited && used >= limit}
+					<div>
+						<div class="flex items-center justify-between text-sm mb-1.5">
+							<span class="font-medium text-ink-700">{label}</span>
+							<span class="{atLimit ? 'text-red-600 font-semibold' : 'text-ink-400'}">
+								{used} / {unlimited ? 'Unlimited' : limit}
+							</span>
+						</div>
+						{#if !unlimited}
+							<div class="h-2 rounded-full bg-ink-100 overflow-hidden">
+								<div class="h-full rounded-full {atLimit ? 'bg-red-500' : 'bg-volt-500'}" style="width: {pct}%"></div>
 							</div>
 						{/if}
-						<span class="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-ink-900 text-volt-300 flex items-center justify-center ring-2 ring-white group-hover:bg-ink-700 transition-colors">
-							<Camera size={14} />
-						</span>
-						<input name="avatar" type="file" accept="image/*" class="sr-only" onchange={onAvatarChange} />
-					</label>
-				</div>
-				<div class="grid md:grid-cols-2 gap-4">
-					<div><label class="label">Full Name</label><input name="full_name" class="input" placeholder="Full name" value={data.profile.full_name ?? ''} /></div>
-					<div><label class="label">Phone</label><input name="phone_number" type="tel" class="input" placeholder="+92 300 1234567" value={data.profile.phone_number ?? ''} /></div>
-					<div><label class="label">City</label><input name="city" class="input" placeholder="Lahore" value={data.profile.city ?? ''} /></div>
-				</div>
-				<button type="submit" class="btn-primary btn">Save Profile</button>
-			</form>
-		</div>
+					</div>
+				{/each}
+			</div>
 
-		<div class="card card-body">
-			<h3 class="font-semibold text-ink-900 mb-4 flex items-center gap-2"><Mail size={16} /> Email Address</h3>
-			{#if form?.emailSuccess}<div class="bg-green-50 text-green-700 rounded-lg px-4 py-2 text-sm mb-4">Check your inbox to confirm the new email address.</div>{/if}
-			{#if form?.emailError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{form.emailError}</div>{/if}
-			<form method="POST" action="?/updateEmail" use:enhance class="flex flex-col sm:flex-row gap-3 sm:items-end">
-				<div class="flex-1"><label class="label">Email</label><input name="email" type="email" class="input" required value={data.email} /></div>
-				<button type="submit" class="btn-primary btn shrink-0">Update Email</button>
-			</form>
-		</div>
-
-		<div class="card card-body">
-			<h3 class="font-semibold text-ink-900 mb-4 flex items-center gap-2"><Lock size={16} /> Password</h3>
-			{#if form?.passwordSuccess}<div class="bg-green-50 text-green-700 rounded-lg px-4 py-2 text-sm mb-4">Password updated!</div>{/if}
-			{#if form?.passwordError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{form.passwordError}</div>{/if}
-			<form method="POST" action="?/updatePassword" use:enhance class="grid md:grid-cols-2 gap-4">
-				<div><label class="label">New Password</label><input name="password" type="password" class="input" required minlength="8" placeholder="At least 8 characters" /></div>
-				<div><label class="label">Confirm Password</label><input name="confirm" type="password" class="input" required minlength="8" placeholder="Re-enter password" /></div>
-				<button type="submit" class="btn-primary btn md:col-span-2 w-fit">Update Password</button>
-			</form>
+			<div class="px-6 sm:px-8 pb-6 sm:pb-8">
+				<p class="text-xs text-ink-400">
+					Need more room? <a href="/contact" class="text-volt-700 hover:underline font-medium">Contact us</a> to upgrade — Starter (₨1,500/mo), Pro (₨4,000/mo), or a Custom plan for unlimited everything.
+				</p>
+			</div>
 		</div>
 	{/if}
 
@@ -291,4 +400,85 @@
 			</div>
 		</form>
 	{/if}
+</Modal>
+
+<Modal open={otpModalOpen} title="Verify New Email" onclose={closeOtpModal}>
+	<p class="text-sm text-ink-500 mb-4">
+		A 6-digit code was sent to <strong class="text-ink-700">{pendingEmail}</strong>. Enter it below to confirm the change.
+	</p>
+	{#if form?.otpError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{form.otpError}</div>{/if}
+	<form
+		method="POST"
+		action="?/verifyEmailChange"
+		use:enhance={() => {
+			otpLoading = true;
+			return async ({ result, update }) => {
+				otpLoading = false;
+				await update();
+				if (result.type === 'success' && result.data?.emailSuccess) closeOtpModal();
+			};
+		}}
+		class="space-y-4"
+	>
+		<input type="hidden" name="email" value={pendingEmail} />
+		<input type="hidden" name="token" value={otpToken} />
+		<div class="flex gap-2 justify-center" onpaste={onOtpPaste}>
+			{#each otpDigits as digit, i}
+				<input
+					bind:this={otpInputs[i]}
+					type="text"
+					inputmode="numeric"
+					maxlength="1"
+					autocomplete="one-time-code"
+					value={digit}
+					oninput={(e) => onOtpInput(i, e)}
+					onkeydown={(e) => onOtpKeydown(i, e)}
+					class="w-11 h-12 text-center text-lg font-bold border border-ink-200 rounded-lg focus:border-ink-900 focus:outline-none"
+					aria-label="Digit {i + 1}"
+				/>
+			{/each}
+		</div>
+		<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
+			<button type="button" onclick={closeOtpModal} class="btn btn-secondary flex-1">Cancel</button>
+			<button type="submit" class="btn btn-primary flex-1" disabled={!otpFilled || otpLoading}>{otpLoading ? 'Verifying…' : 'Verify & Change Email'}</button>
+		</div>
+	</form>
+	<form
+		method="POST"
+		action="?/resendEmailChangeOtp"
+		use:enhance={() => {
+			resendLoading = true;
+			return async ({ update }) => { resendLoading = false; await update(); };
+		}}
+		class="mt-3 text-center"
+	>
+		<input type="hidden" name="email" value={pendingEmail} />
+		<button type="submit" disabled={resendLoading} class="text-sm text-ink-500 hover:text-ink-800 disabled:opacity-50">
+			{resendLoading ? 'Sending…' : 'Resend code'}
+		</button>
+	</form>
+</Modal>
+
+<Modal open={deleteAccountOpen} title="Delete your account?" onclose={() => (deleteAccountOpen = false)}>
+	<p class="text-sm text-ink-500 mb-4">
+		This permanently deletes your login and profile, and cannot be undone. Type <strong class="text-ink-900 font-mono">DELETE</strong> below to confirm.
+	</p>
+	{#if form?.deleteAccountError}<div class="bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">{form.deleteAccountError}</div>{/if}
+	<form
+		method="POST"
+		action="?/deleteAccount"
+		use:enhance={() => {
+			deleteAccountLoading = true;
+			return async ({ update }) => { deleteAccountLoading = false; await update(); };
+		}}
+		class="space-y-4"
+	>
+		<input name="confirm" class="input font-mono" placeholder="Type DELETE" bind:value={deleteConfirmText} autocomplete="off" />
+		<div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
+			<button type="button" onclick={() => (deleteAccountOpen = false)} class="btn btn-secondary flex-1">Cancel</button>
+			<button type="submit" class="btn btn-danger flex-1" disabled={deleteConfirmText !== 'DELETE' || deleteAccountLoading}>
+				{deleteAccountLoading ? 'Deleting…' : 'Delete My Account'}
+			</button>
+		</div>
+	</form>
 </Modal>

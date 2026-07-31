@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { createSupabaseAdminClient } from '$lib/server/supabase.js';
 import { requireRole, requireGymAccess, scopeGymId, applyGymScope, isSuperadmin } from '$lib/server/rbac.js';
 import { staffWelcomeEmail, sendEmail } from '$lib/server/email.js';
+import { checkQuota, countStaffForOwner } from '$lib/server/plan.js';
 
 export const load = async ({ locals }) => {
 	requireRole(locals, ['superadmin', 'manager']);
@@ -43,6 +44,11 @@ export const actions = {
 
 		if (!full_name || !email || !phone_number) {
 			return fail(400, { error: 'Full name, email, and phone number are required.' });
+		}
+
+		const quotaError = await checkQuota(locals, 'staff', countStaffForOwner);
+		if (quotaError) {
+			return fail(403, { error: quotaError });
 		}
 
 		// Managers can create instructors/staff in their own gym, but not peer managers.

@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from '$lib/server/supabase.js';
 import { requireRole, scopeGymId } from '$lib/server/rbac.js';
 import { createSubscription } from '$lib/server/billing.js';
 import { memberWelcomeEmail, subscriptionConfirmationEmail, sendEmail } from '$lib/server/email.js';
+import { checkQuota, countMembersForOwner } from '$lib/server/plan.js';
 
 export const load = async ({ locals }) => {
 	requireRole(locals, ['superadmin', 'manager']);
@@ -49,6 +50,9 @@ export const actions = {
 		if (!package_id) return fail(400, { error: 'Membership plan is required.' });
 		if (!start_date) return fail(400, { error: 'Membership start date is required.' });
 		if (!amount_due) return fail(400, { error: 'Fee amount is required.' });
+
+		const quotaError = await checkQuota(locals, 'members', countMembersForOwner);
+		if (quotaError) return fail(403, { error: quotaError });
 
 		// Checked up front, before the auth user is created, so a duplicate code
 		// fails fast instead of leaving behind an orphaned auth account.

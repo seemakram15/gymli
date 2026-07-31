@@ -21,7 +21,7 @@ export const handle = async ({ event, resolve }) => {
 
 			const { data: profile } = await supabase
 				.from('profiles')
-				.select('id, full_name, role, phone_number, city, avatar_url, gym_id')
+				.select('id, full_name, role, phone_number, city, avatar_url, gym_id, status, plan')
 				.eq('id', user.id)
 				.single();
 			event.locals.profile = profile;

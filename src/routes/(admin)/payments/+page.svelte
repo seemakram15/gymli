@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
-	import { TrendingUp, Calendar, ChevronLeft, ChevronRight, Pencil, Ban, Receipt, FileText, Search } from 'lucide-svelte';
+	import { TrendingUp, Calendar, ChevronLeft, ChevronRight, Pencil, Ban, Receipt, FileText, Search, Activity, DollarSign, Hash, CreditCard } from 'lucide-svelte';
 	import { formatPKR, formatDateTime } from '$lib/utils/format.js';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
@@ -61,6 +61,16 @@
 
 	const totalPages = $derived(Math.ceil(data.total / data.perPage));
 
+	/** @type {Record<string, string>} */
+	const methodLabels = { cash: 'Cash', card: 'Card', bank_transfer: 'Bank Transfer', online: 'Online' };
+	/** @type {Record<string, string>} */
+	const methodColors = { cash: 'bg-emerald-500', card: 'bg-blue-500', bank_transfer: 'bg-purple-500', online: 'bg-amber-500' };
+	const methodBreakdown = $derived(
+		Object.entries(data.summary.byMethod ?? {})
+			.map(([method, amount]) => ({ method, amount, pct: data.summary.total ? (amount / data.summary.total) * 100 : 0 }))
+			.sort((a, b) => b.amount - a.amount)
+	);
+
 	function sortBy(column) {
 		const params = new URLSearchParams($page.url.searchParams);
 		const nextDir = data.sort === column && data.dir === 'asc' ? 'desc' : 'asc';
@@ -83,20 +93,68 @@
 		<div class="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">{form.error}</div>
 	{/if}
 
+	<!-- Revenue Hero -->
+	<div class="relative rounded-2xl p-6 overflow-hidden bg-ink-950">
+		<div class="absolute inset-0 opacity-40" style="background: radial-gradient(circle at 85% 20%, rgba(180,239,42,0.25), transparent 40%);"></div>
+		<div class="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+			<div>
+				<div class="text-white/60 text-sm font-medium mb-1 flex items-center gap-2"><Activity size={14}/> Total Collected — All Time</div>
+				<div class="font-display text-4xl font-extrabold text-white">{formatPKR(data.summary.total)}</div>
+				<div class="text-white/50 text-sm mt-1">Across {data.summary.count} transactions</div>
+			</div>
+			<div class="flex gap-6">
+				{#each [['Today', data.summary.today],['This Week', data.summary.week],['This Month', data.summary.month]] as [l, v]}
+					<div class="text-center">
+						<div class="text-lg font-bold text-volt-300">{formatPKR(v)}</div>
+						<div class="text-white/40 text-xs mt-0.5">{l}</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	</div>
+
 	<!-- Summary Cards -->
-	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+	<div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
 		{#each [
-			['Today', data.summary.today, 'text-blue-600', 'bg-blue-50'],
-			['This Week', data.summary.week, 'text-green-600', 'bg-green-50'],
-			['This Month', data.summary.month, 'text-purple-600', 'bg-purple-50'],
-			['All Time', data.summary.total, 'text-gray-900', 'bg-gray-50'],
-		] as [label, value, textCls, bgCls]}
-			<div class="card p-5">
-				<div class="text-sm text-gray-500 mb-1">{label}</div>
-				<div class="text-2xl font-bold {textCls}">{formatPKR(value)}</div>
+			['Collected Today', data.summary.today, Calendar, 'ring-blue-100', 'bg-blue-500', 'from-blue-50 to-white'],
+			['This Week', data.summary.week, TrendingUp, 'ring-emerald-100', 'bg-emerald-500', 'from-emerald-50 to-white'],
+			['This Month', data.summary.month, DollarSign, 'ring-purple-100', 'bg-purple-500', 'from-purple-50 to-white'],
+			['Avg. Payment', data.summary.avg, Hash, 'ring-amber-100', 'bg-amber-500', 'from-amber-50 to-white'],
+		] as [label, value, Icon, ring, iconBg, tint]}
+			<div class="relative card p-5 overflow-hidden bg-gradient-to-br {tint} ring-1 {ring}">
+				<div class="flex items-start justify-between mb-3">
+					<div class="text-xs font-semibold text-ink-400 uppercase tracking-wider leading-none">{label}</div>
+					<div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 {iconBg} shadow-sm">
+						<Icon size={16} class="text-white"/>
+					</div>
+				</div>
+				<div class="text-2xl font-extrabold text-ink-900">{formatPKR(value)}</div>
 			</div>
 		{/each}
 	</div>
+
+	<!-- Payment Methods Breakdown -->
+	{#if methodBreakdown.length}
+		<div class="card p-5">
+			<h3 class="font-bold text-gray-900 text-sm flex items-center gap-2 mb-4">
+				<span class="w-7 h-7 rounded-lg bg-ink-100 flex items-center justify-center"><CreditCard size={14} class="text-ink-700"/></span>
+				Collected by Method
+			</h3>
+			<div class="space-y-3">
+				{#each methodBreakdown as m}
+					<div>
+						<div class="flex items-center justify-between text-xs mb-1">
+							<span class="font-medium text-ink-700 capitalize">{methodLabels[m.method] ?? m.method}</span>
+							<span class="text-ink-400">{formatPKR(m.amount)} · {m.pct.toFixed(0)}%</span>
+						</div>
+						<div class="h-2 rounded-full bg-ink-50 overflow-hidden">
+							<div class="h-full rounded-full {methodColors[m.method] ?? 'bg-ink-400'}" style="width: {m.pct}%"></div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Search + Range Filter -->
 	<div class="flex flex-col sm:flex-row gap-3 sm:items-center">

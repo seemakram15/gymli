@@ -25,7 +25,7 @@ export const actions = {
 			redirect(303, '/reset-password');
 		}
 
-		redirect(303, '/dashboard');
+		redirect(303, '/choose-plan');
 	},
 
 	resend: async ({ request, locals }) => {

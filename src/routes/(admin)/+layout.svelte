@@ -9,7 +9,6 @@
 	import { goto } from '$app/navigation';
 	import { createClient } from '$lib/supabase.js';
 	import { initials } from '$lib/utils/format.js';
-	import Logo from '$lib/components/Logo.svelte';
 	import PageSkeleton from '$lib/components/PageSkeleton.svelte';
 
 	let { children, data } = $props();
@@ -37,26 +36,26 @@
 		{
 			title: 'Overview',
 			items: [
-				{ path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'manager', 'instructor', 'staff'] },
-				{ path: '/reports', label: 'Reports', icon: BarChart3, roles: ['superadmin', 'manager'] }
+				{ path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'bg-blue-500', roles: ['superadmin', 'manager', 'instructor', 'staff'] },
+				{ path: '/reports', label: 'Reports', icon: BarChart3, color: 'bg-rose-500', roles: ['superadmin', 'manager'] }
 			]
 		},
 		{
 			title: 'Members',
 			items: [
-				{ path: '/members', label: 'All Members', icon: Users, roles: ['superadmin', 'manager', 'instructor', 'staff'] },
-				{ path: '/subscriptions', label: 'Subscriptions', icon: CreditCard, roles: ['superadmin', 'manager'] },
-				{ path: '/payments', label: 'Payments', icon: CreditCard, roles: ['superadmin', 'manager', 'instructor'] },
-				{ path: '/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['superadmin', 'manager', 'instructor', 'staff'] }
+				{ path: '/members', label: 'All Members', icon: Users, color: 'bg-violet-500', roles: ['superadmin', 'manager', 'instructor', 'staff'] },
+				{ path: '/subscriptions', label: 'Subscriptions', icon: CreditCard, color: 'bg-indigo-500', roles: ['superadmin', 'manager'] },
+				{ path: '/payments', label: 'Payments', icon: CreditCard, color: 'bg-emerald-500', roles: ['superadmin', 'manager', 'instructor'] },
+				{ path: '/attendance', label: 'Attendance', icon: CalendarCheck, color: 'bg-sky-500', roles: ['superadmin', 'manager', 'instructor', 'staff'] }
 			]
 		},
 		{
 			title: 'Setup',
 			items: [
-				{ path: '/packages', label: 'Plans', icon: Package, roles: ['superadmin', 'manager'] },
-				{ path: '/staff', label: 'Staff', icon: UserCog, roles: ['superadmin', 'manager'] },
-				{ path: '/gyms', label: 'Gym Locations', icon: Building2, roles: ['superadmin', 'manager'] },
-				{ path: '/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'manager', 'instructor', 'staff'] }
+				{ path: '/packages', label: 'Plans', icon: Package, color: 'bg-amber-500', roles: ['superadmin', 'manager'] },
+				{ path: '/staff', label: 'Staff', icon: UserCog, color: 'bg-purple-500', roles: ['superadmin', 'manager'] },
+				{ path: '/gyms', label: 'Gym Locations', icon: Building2, color: 'bg-teal-500', roles: ['superadmin', 'manager'] },
+				{ path: '/settings', label: 'Settings', icon: Settings, color: 'bg-slate-500', roles: ['superadmin', 'manager', 'instructor', 'staff'] }
 			]
 		}
 	];
@@ -113,12 +112,14 @@
 							<a
 								href={item.path}
 								onclick={() => (sidebarOpen = false)}
-								class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+								class="flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
 									{active
 										? 'bg-volt-400/15 text-volt-300 border border-volt-400/20'
 										: 'text-white/50 hover:text-white hover:bg-white/5 border border-transparent'}"
 							>
-								<Icon size={16} class={active ? 'text-volt-400' : ''} />
+								<span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 {item.color} {active ? '' : 'opacity-80'}">
+									<Icon size={14} class="text-white" />
+								</span>
 								{item.label}
 								{#if active}<ChevronRight size={12} class="ml-auto text-volt-400" />{/if}
 							</a>
@@ -127,33 +128,6 @@
 				</div>
 			{/each}
 		</nav>
-
-		<div class="border-t border-white/8 p-3">
-			<button
-				onclick={() => (profileOpen = !profileOpen)}
-				class="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors text-left"
-			>
-				<div class="w-9 h-9 rounded-lg bg-volt-400 text-ink-950 flex items-center justify-center text-xs font-bold shrink-0">
-					{initials(data.profile?.full_name ?? data.user?.email ?? '?')}
-				</div>
-				<div class="flex-1 min-w-0">
-					<div class="text-white text-sm font-semibold truncate">{data.profile?.full_name ?? 'User'}</div>
-					<div class="text-white/40 text-xs capitalize">{data.profile?.role ?? 'member'}</div>
-				</div>
-				<ChevronDown size={14} class="text-white/30 shrink-0 transition-transform {profileOpen ? 'rotate-180' : ''}" />
-			</button>
-
-			{#if profileOpen}
-				<div class="mt-1 rounded-xl overflow-hidden border border-white/8 bg-white/5">
-					<a href="/settings" class="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors">
-						<Settings size={14} /> Account Settings
-					</a>
-					<button onclick={signOut} class="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-400 hover:bg-white/5 transition-colors">
-						<LogOut size={14} /> Sign Out
-					</button>
-				</div>
-			{/if}
-		</div>
 	</aside>
 
 	{#if sidebarOpen}
@@ -177,17 +151,49 @@
 				<span class="text-sm font-semibold text-ink-700 truncate">{gymName}</span>
 			</div>
 
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-2 relative">
 				<button class="w-9 h-9 flex items-center justify-center rounded-xl text-ink-500 hover:bg-ink-100 transition-colors relative" aria-label="Notifications">
 					<Bell size={18} />
 					<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-volt-400 rounded-full"></span>
 				</button>
-				<a
-					href="/settings"
-					class="w-9 h-9 rounded-lg bg-ink-900 text-volt-300 flex items-center justify-center text-xs font-bold"
+
+				<button
+					onclick={() => (profileOpen = !profileOpen)}
+					class="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-xl hover:bg-ink-100 transition-colors"
 				>
-					{initials(data.profile?.full_name ?? data.user?.email ?? '?')}
-				</a>
+					{#if data.profile?.avatar_url}
+						<img src={data.profile.avatar_url} alt="" class="w-8 h-8 rounded-lg object-cover shrink-0" />
+					{:else}
+						<div class="w-8 h-8 rounded-lg bg-ink-900 text-volt-300 flex items-center justify-center text-xs font-bold shrink-0">
+							{initials(data.profile?.full_name ?? data.user?.email ?? '?')}
+						</div>
+					{/if}
+					<ChevronDown size={14} class="text-ink-400 hidden sm:block transition-transform {profileOpen ? 'rotate-180' : ''}" />
+				</button>
+
+				{#if profileOpen}
+					<button
+						class="fixed inset-0 z-40 cursor-default"
+						onclick={() => (profileOpen = false)}
+						aria-label="Close menu"
+					></button>
+					<div class="absolute right-0 top-12 z-50 w-56 rounded-xl overflow-hidden border border-ink-100 bg-white shadow-xl">
+						<div class="px-3.5 py-3 border-b border-ink-100">
+							<div class="text-sm font-semibold text-ink-900 truncate">{data.profile?.full_name ?? 'User'}</div>
+							<div class="text-xs text-ink-400 capitalize">{data.profile?.role ?? 'member'}</div>
+						</div>
+						<a
+							href="/settings"
+							onclick={() => (profileOpen = false)}
+							class="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ink-600 hover:bg-ink-50 transition-colors"
+						>
+							<Settings size={14} /> Account Settings
+						</a>
+						<button onclick={signOut} class="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+							<LogOut size={14} /> Sign Out
+						</button>
+					</div>
+				{/if}
 			</div>
 		</header>
 

@@ -1,4 +1,5 @@
 import { redirect, error } from '@sveltejs/kit';
+import { getAccountPlan } from '$lib/server/plan.js';
 
 export const load = async ({ locals }) => {
 	if (!locals.supabase) {
@@ -10,6 +11,15 @@ export const load = async ({ locals }) => {
 
 	if (!locals.user) {
 		redirect(303, '/login');
+	}
+
+	// Gate the whole gym-admin shell on the account owner's access status —
+	// suspending/pending-ing a gym owner locks out their whole team too,
+	// since manager/instructor/staff/member accounts inherit their owner's
+	// status via the same gym-owner lookup getAccountPlan already does.
+	const { status } = await getAccountPlan(locals);
+	if (status !== 'active') {
+		redirect(303, '/account-status');
 	}
 
 	const gymId = locals.profile?.role === 'superadmin' ? null : locals.profile?.gym_id;
