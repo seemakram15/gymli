@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { ArrowLeft, Landmark, Smartphone, Upload, CheckCircle2, Send } from 'lucide-svelte';
+	import { ArrowLeft, Landmark, Smartphone, Upload, CheckCircle2 } from 'lucide-svelte';
 	import { formatPKR } from '$lib/utils/format.js';
 	import Select from '$lib/components/Select.svelte';
 
@@ -32,19 +32,7 @@
 
 	<div class="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
 
-		{#if form?.success}
-			<div class="bg-white rounded-2xl border border-ink-100 p-8 sm:p-10 text-center shadow-2xl">
-				<div class="w-14 h-14 rounded-2xl bg-volt-100 text-volt-800 flex items-center justify-center mx-auto mb-4">
-					<Send size={22} />
-				</div>
-				<h1 class="font-display text-xl sm:text-2xl font-bold text-ink-900">Request submitted</h1>
-				<p class="mt-2 text-sm text-ink-500 max-w-sm mx-auto">
-					We've received your {data.planInfo.label} plan request and receipt. We'll verify your payment and email you as soon as your account is activated.
-				</p>
-				<a href="/account-status" class="btn btn-primary mt-6 gap-2">View request status</a>
-			</div>
-		{:else}
-			<!-- Plan summary -->
+		<!-- Plan summary -->
 			<div class="text-center mb-8">
 				<p class="font-display text-volt-400 text-xs sm:text-sm font-bold tracking-[0.18em] uppercase mb-2">Subscribe</p>
 				<h1 class="font-display text-2xl sm:text-4xl font-extrabold text-white tracking-tight">{data.planInfo.label} Plan</h1>
@@ -129,6 +117,5 @@
 					</button>
 				</form>
 			</div>
-		{/if}
 	</div>
 </div>

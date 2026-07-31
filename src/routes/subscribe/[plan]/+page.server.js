@@ -106,6 +106,10 @@ export const actions = {
 			sendEmail(locals.user.email, toRequester.subject, toRequester.html),
 		]);
 
-		return { success: true };
+		// Land them straight in the admin shell instead of a standalone
+		// success screen — the (admin) layout already renders the "under
+		// review" state for a pending account, so there's no need to sign
+		// out/in again just to see the menu.
+		redirect(303, '/dashboard');
 	},
 };

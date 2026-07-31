@@ -1,4 +1,6 @@
+import { redirect } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/server/supabase';
+import { getAccountPlan } from '$lib/server/plan.js';
 
 export const handle = async ({ event, resolve }) => {
 	const supabase = createSupabaseServerClient(event);
@@ -25,6 +27,20 @@ export const handle = async ({ event, resolve }) => {
 				.eq('id', user.id)
 				.single();
 			event.locals.profile = profile;
+
+			// A pending account (awaiting service-provider review) can browse
+			// the gym-admin shell to see the menu, but every mutating request
+			// (form actions: create/update/delete) is blocked here so there's
+			// a single enforcement point instead of a guard duplicated across
+			// every actions handler. GET requests pass through untouched — the
+			// (admin) layout swaps the page content for a review-status
+			// message instead of rendering real CRUD forms/data.
+			if (event.request.method !== 'GET' && event.route.id?.startsWith('/(admin)')) {
+				const { status } = await getAccountPlan(event.locals);
+				if (status === 'pending') {
+					redirect(303, event.url.pathname);
+				}
+			}
 		}
 	}
 

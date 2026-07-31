@@ -3,7 +3,7 @@
 		LayoutDashboard, Users, CreditCard, Package,
 		Building2, CalendarCheck, BarChart3, Settings,
 		LogOut, Menu, X, ChevronDown, UserCog,
-		Bell, ChevronRight
+		Bell, ChevronRight, Clock
 	} from 'lucide-svelte';
 	import { page, navigating } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -200,6 +200,18 @@
 		<main class="flex-1 overflow-y-auto">
 			{#if navigatingVariant}
 				<PageSkeleton variant={navigatingVariant} />
+			{:else if data.accessPending}
+				<div class="min-h-full flex items-center justify-center p-6">
+					<div class="max-w-md w-full text-center bg-white border border-gray-100 rounded-2xl shadow-sm px-8 py-10">
+						<div class="w-14 h-14 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-5">
+							<Clock size={26} />
+						</div>
+						<h2 class="text-lg font-semibold text-gray-900 mb-2">Your request is under review</h2>
+						<p class="text-sm text-gray-500 leading-relaxed">
+							We've received your{data.pendingPlan ? ` ${data.pendingPlan}` : ''} plan request and receipt. You'll get an email as soon as it's verified.
+						</p>
+					</div>
+				</div>
 			{:else}
 				{@render children()}
 			{/if}
